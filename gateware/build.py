@@ -28,7 +28,8 @@ def main():
         'status': ['ctl', 'pair', 'flags', 'flags_valid', 'flags_mask',
                    'address', 'data', 'register_valid'],
         'transmit': ['grant', 'speed', 'allow_hold', 'valid', 'ready', 'byte', 'last',
-                     'ctl', 'data', 'oe', 'done', 'underrun'],
+                     'ctl', 'data', 'oe', 'done', 'underrun', 'concatenate',
+                     'next_speed', 'multispeed', 'config_error'],
         'receive': ['ctl', 'data', 'byte', 'valid', 'start', 'end', 'error', 'speed'],
     }
     dut = constructors[args.core]()

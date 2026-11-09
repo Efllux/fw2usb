@@ -2,7 +2,7 @@
 
 Upstream must prebuffer a packet: once started there is no byte backpressure
 from the PHY. Missing a byte terminates the packet and pulses underrun; caller
-must discard that packet. No LREQ scheduling, concatenation or CRC insertion.
+must discard that packet. No LREQ scheduling, cable separation timing or CRC insertion.
 """
 from amaranth import Elaboratable, Module, Mux, Signal
 
@@ -16,6 +16,10 @@ class TransmitAdapter(Elaboratable):
         self.ready = Signal()
         self.byte = Signal(8)
         self.last = Signal()
+        self.concatenate = Signal()
+        self.next_speed = Signal(2)
+        self.multispeed = Signal()  # PHY EMC configuration, latched on grant
+        self.config_error = Signal()
         self.ctl = Signal(2)
         self.data = Signal(8)
         self.oe = Signal()
@@ -32,17 +36,30 @@ class TransmitAdapter(Elaboratable):
         started = Signal()
         allow_hold = Signal()
         holds = Signal(range(48))
+        multispeed = Signal()
+        saved_concat = Signal()
+        saved_speed = Signal(2)
+        concat = Signal()
+        concat_speed = Signal(2)
+        requested_concat = Signal()
+        requested_speed = Signal(2)
+        invalid_concat = Signal()
+        m.d.comb += [requested_concat.eq(Mux(index == 0, self.concatenate, saved_concat)),
+                     requested_speed.eq(Mux(index == 0, self.next_speed, saved_speed)),
+                     invalid_concat.eq(multispeed & ((requested_speed == 3) |
+                                      ((speed != 0) & (requested_speed == 0))))]
         current = Signal(8)
         final_lane = Signal()
         m.d.comb += [current.eq(Mux(index == 0, self.byte, saved)),
                      final_lane.eq(Mux(speed == 0, index == 3,
                                        Mux(speed == 1, index == 1, 1)))]
-        m.d.sync += [self.done.eq(0), self.underrun.eq(0)]
+        m.d.sync += [self.done.eq(0), self.underrun.eq(0), self.config_error.eq(0)]
         with m.FSM():
             with m.State('WAIT'):
                 with m.If(self.grant):
                     m.d.sync += [speed.eq(self.speed), index.eq(0), started.eq(0),
-                                 allow_hold.eq(self.allow_hold), holds.eq(0)]
+                                 allow_hold.eq(self.allow_hold), holds.eq(0),
+                                 multispeed.eq(self.multispeed), concat.eq(0)]
                     m.next = 'TURN'
             with m.State('TURN'):
                 # PHY drives idle following grant; LLC remains high impedance.
@@ -68,16 +85,25 @@ class TransmitAdapter(Elaboratable):
                         with m.Case(2):
                             m.d.comb += self.data.eq(current)
                     with m.If(index == 0):
-                        m.d.sync += [saved.eq(self.byte), last.eq(self.last)]
+                        m.d.sync += [saved.eq(self.byte), last.eq(self.last),
+                                     saved_concat.eq(self.concatenate), saved_speed.eq(self.next_speed)]
                     with m.If(final_lane):
                         m.d.sync += index.eq(0)
                         with m.If(Mux(index == 0, self.last, last)):
-                            m.d.sync += tail.eq(1)
+                            m.d.sync += [tail.eq(1),
+                                         concat.eq(requested_concat & ~invalid_concat),
+                                         concat_speed.eq(requested_speed),
+                                         self.config_error.eq(requested_concat & invalid_concat)]
                             m.next = 'TAIL'
                     with m.Else():
                         m.d.sync += index.eq(index + 1)
             with m.State('TAIL'):
-                m.d.comb += self.oe.eq(1)  # terminating idle samples
+                m.d.comb += self.oe.eq(1)
+                with m.If((tail == 1) & concat):
+                    m.d.comb += self.ctl.eq(1)
+                    with m.If(multispeed):
+                        m.d.comb += self.data.eq(Mux(concat_speed == 0, 0,
+                                                    Mux(concat_speed == 1, 0x40, 0x50)))
                 with m.If(tail == 0):
                     m.d.sync += self.done.eq(1)
                     m.next = 'WAIT'

@@ -92,3 +92,47 @@ class TransmitRtlTest(unittest.TestCase):
 
             sim.add_testbench(bench)
             sim.run()
+
+    def test_concatenated_speed_codes_and_illegal_downgrade(self):
+        for speed in range(3):
+            for config in range(8):
+                multispeed, next_speed = config >= 4, config % 4
+                dut = TransmitAdapter()
+                sim = Simulator(dut)
+                sim.add_clock(1 / 49_152_000)
+
+                async def bench(ctx):
+                    p = TransmitPhy()
+                    p.grant(speed, multispeed=multispeed)
+                    ctx.set(dut.speed, speed)
+                    ctx.set(dut.multispeed, multispeed)
+                    ctx.set(dut.grant, 1)
+                    p.tick()
+                    await ctx.tick()
+                    ctx.set(dut.grant, 0)
+                    p.tick()
+                    await ctx.tick()
+                    ctx.set(dut.valid, 1)
+                    ctx.set(dut.byte, 0xa5)
+                    ctx.set(dut.last, 1)
+                    ctx.set(dut.concatenate, 1)
+                    ctx.set(dut.next_speed, next_speed)
+                    errors = 0
+                    for _ in range(12):
+                        p.tick(ctx.get(dut.ctl) if ctx.get(dut.oe) else None,
+                               ctx.get(dut.data))
+                        await ctx.tick()
+                        errors += ctx.get(dut.config_error)
+                        if ctx.get(dut.done):
+                            break
+                    else:
+                        self.fail('concatenated termination failed')
+                    invalid = multispeed and (next_speed == 3 or (speed > 0 and next_speed == 0))
+                    self.assertEqual(errors, int(invalid))
+                    self.assertEqual(p.completed[0].payload, b'\xa5')
+                    self.assertEqual(p.completed[0].concatenate, not invalid)
+                    self.assertEqual(p.completed[0].next_speed, speed if invalid or not multispeed else next_speed)
+                    self.assertEqual(p.tick(), 0)
+
+                sim.add_testbench(bench)
+                sim.run()
