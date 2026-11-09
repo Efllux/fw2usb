@@ -256,3 +256,24 @@ registered production GUID. Controller/node/phase startup policy remains externa
 The zero-wait grant test exposed an ACK pipeline delay, now fixed by forwarding
 new ACK data before its retention latch. New bus requests are held until active
 PHY TX ends so a queued request cannot switch the active packet source mid-frame.
+
+## I ISO / AMDTP hardware
+
+AM824 RX/TX and exact-rational blocking SYT engine are cross-checked with Rust
+fw-amdtp-generated shared fixtures at44.1/48kHz (including NO-DATA and DBC wrap).
+ISO TX adds wire headers/CRCs; profile-bounded ISO RX stores payload in synchronous
+RAM and validates the complete ISO/CIP shape before replaying PCM. CRC corruption
+emits no PCM; sample/busy loss counters are explicit. Hardware PCR CAS connections
+reset with the bus. FIFO/USB downstream backpressure and duplex scheduling remain
+integration work; capacity/DBS must be selected for each profile (default2 slots,
+512-byte payload). MIDI labels are skipped by RX; TX currently emits PCM slots.
+
+`sim.audio.AudioClock` uses independent absolute sample-event times, true frequency
+error and configurable SYT jitter. It matches Rust packet bytes at nominal rate;
+one-second tests bound sample drift at±100ppm. BeBoB/DICE fixtures expose separate
+stream-enable gates and this synthetic source. No capture or actual device-clock
+lock correlation is claimed. IEC61883-1/6 wire facts cross-checked against the
+[IEC sample](https://cdn.standards.iteh.ai/samples/15699/bfd68180020e438b92a73cda964485be/IEC-61883-1-2008.pdf).
+PCR payload defaults are development fixtures; per-device overhead/admission
+values still require profile validation. DBS=0/256-slot generic streams are outside
+these bounded audio profiles.

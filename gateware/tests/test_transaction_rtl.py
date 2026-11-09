@@ -197,3 +197,19 @@ class TransactionRtlTest(unittest.TestCase):
 
         sim.add_testbench(bench)
         sim.run()
+
+    def test_cmp_hardware_pcr_compare_swap_and_reset(self):
+        dut=CsrBank();sim=Simulator(dut);sim.add_clock(1/49_152_000)
+        async def bench(ctx):
+            ctx.set(dut.response_ready,1)
+            for address,channel in [(CSR+0x984,2),(CSR+0x904,3)]:
+                ctx.set(dut.valid,1);ctx.set(dut.address,address);ctx.set(dut.compare_swap,1)
+                ctx.set(dut.compare,0x80000010);ctx.set(dut.data,0x81000010|(channel<<16))
+                await ctx.tick()
+                self.assertEqual(ctx.get(dut.response_data),0x80000010)
+            self.assertTrue(ctx.get(dut.connected))
+            self.assertEqual(ctx.get(dut.input_channel),2)
+            self.assertEqual(ctx.get(dut.output_channel),3)
+            ctx.set(dut.bus_reset,1);await ctx.tick()
+            self.assertFalse(ctx.get(dut.connected))
+        sim.add_testbench(bench);sim.run()
