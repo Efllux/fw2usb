@@ -197,3 +197,15 @@ CycleMaster emits the 16-byte header of IEEE1394-2008 Fig6-10 (broadcast CYCLE_T
 write, tcode8, priF) plus CRC. It delays grant eligibility until offset17, snapshots
 time at grant per §8.3.2.3, and requires an external priority arbiter. Physical
 PHY latency compensation and real capture correlation remain unverified.
+
+`sim.bus.Bus` adds an epoch-aware event-level tree bus: postorder physical IDs,
+self-ID/complement broadcast, cable-hop propagation, reset invalidation, one
+pending request/node, priority classes, nominal gap_count delays and fairness
+intervals. Multi-node tests cover branching, propagation and reset during queued
+traffic. This is **not cycle-accurate cable arbitration**: tree handshakes and
+arbitration ties are abstract policies, no analog lines, dribble bits, repeating
+port elastic buffers, suspend or accelerated arbitration are modeled. Generic
+nodes support up to3 ports; they are not all TSB41AB2 instances. Prefix/end/reset
+corners and nominal gap equations are sourced in SOFT-PHY.md; no uncertain
+RESET_DETECT constant is used. Independent PHY clocks remain in the pin-level
+harness rather than this opaque-frame scheduler.
