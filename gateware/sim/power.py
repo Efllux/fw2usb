@@ -32,6 +32,19 @@ class InterfacePower:
         self.reset_epoch = 0
         self.has_operated = False
 
+    def hardware_reset(self, now_ns):
+        now = Fraction(now_ns)
+        if now < self.now:
+            raise ValueError('time cannot run backwards')
+        self.now = self.low_since = now
+        self.lps = False
+        self.state = 'disabled'
+        self.clock_running = False
+        self.clock_at = None
+        self.init_cycle = 0
+        self.has_operated = False
+        self.reset_epoch += 1
+
     @property
     def operational(self):
         return self.state == 'normal'

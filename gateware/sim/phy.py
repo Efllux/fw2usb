@@ -202,12 +202,15 @@ class RegisterPhy:
 class PoweredRegisterPhy:
     """Direct ISO=1 level-LPS composition; no cable/arbitration engine yet."""
     def __init__(self, *, power=None, **straps):
-        from sim.power import InterfacePower
+        from sim.power import InterfacePower, LinkOn
+        self.linkon = LinkOn()
+        self.ports_active = True
         self.power = power if power is not None else InterfacePower()
         self.phy = RegisterPhy(**straps)
         self._epoch = self.power.reset_epoch
 
     def update(self, now_ns, *, lps, ports_active=True):
+        self.ports_active = ports_active
         self.power.update(now_ns, lps=lps, ports_active=ports_active)
         if self._epoch != self.power.reset_epoch:
             # Interface reset differs from bus reset: pending reads and all
@@ -215,9 +218,11 @@ class PoweredRegisterPhy:
             self.phy.requests = LreqDecoder()
             self.phy.status = StatusSource()
             self._epoch = self.power.reset_epoch
+        self.linkon_pin()
 
     def bus_reset(self):
         self.phy.bus_reset()
+        self.linkon_pin(bus_reset=True)
         if not self.power.operational:
             self.phy.status = StatusSource()  # inactive events are not queued
 
@@ -225,4 +230,24 @@ class PoweredRegisterPhy:
         forced = self.power.sample_sclk()
         if forced is not None:
             return forced
-        return self.phy.tick(lreq, receiving=receiving)
+        epoch = self.phy.registers.reset_epoch
+        pins = self.phy.tick(lreq, receiving=receiving)
+        if epoch != self.phy.registers.reset_epoch:
+            # SWR is a hardware reset, including SYSCLK disable and startup.
+            lps = self.power.lps
+            self.power.hardware_reset(self.power.now)
+            self.linkon.update(self.power.now, link_active=False, register5=0,
+                               hardware_reset=True)
+            self._epoch = self.power.reset_epoch
+            self.update(self.power.now, lps=lps, ports_active=self.ports_active)
+            return 0, 0
+        self.linkon_pin()
+        return pins
+
+    def linkon_pin(self, *, addressed_packet=False, bus_reset=False):
+        lps_active = self.power.state in ('normal', 'initializing')
+        return self.linkon.update(
+            self.power.now,
+            link_active=lps_active and bool(self.phy.registers.read(4) & 0x80),
+            register5=self.phy.registers.read(5),
+            addressed_packet=addressed_packet, bus_reset=bus_reset)

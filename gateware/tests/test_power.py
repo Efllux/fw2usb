@@ -102,3 +102,40 @@ class PowerTest(unittest.TestCase):
         # Clearing interrupt alone does not clear a latched wake indication.
         self.assertEqual(p.update(202, link_active=False, register5=0), 1)
         self.assertIsNone(p.update(203, link_active=False, register5=0, hardware_reset=True))
+
+    def test_software_reset_restarts_clock_and_clears_pending_read(self):
+        from sim.phy import PoweredRegisterPhy
+        p = PoweredRegisterPhy()
+        p.update(0, lps=True)
+        p.update(60, lps=True)
+        for _ in range(9):
+            p.sample_sclk()
+        p.phy.registers.write(7, 0xe0)
+        for bit in '110001000':
+            p.sample_sclk(int(bit), receiving=True)
+        self.assertIsNotNone(p.phy.status.read_pending)
+        # WRITE page7:E = 80, SWR. Literal 1|101|1110|10000000|0.
+        for bit in '11011110100000000':
+            p.sample_sclk(int(bit), receiving=True)
+        self.assertFalse(p.power.clock_running)
+        self.assertEqual(p.power.state, 'initializing')
+        self.assertIsNone(p.phy.status.read_pending)
+        self.assertEqual(p.phy.registers.read(7), 0)
+        p.update(120, lps=True)
+        self.assertEqual([p.sample_sclk() for _ in range(9)],
+                         [(0, 0)] * 7 + [(2, 255), (0, 0)])
+
+    def test_linkon_register_power_composition(self):
+        from sim.phy import PoweredRegisterPhy
+        p = PoweredRegisterPhy()
+        p.phy.registers.write(5, 0x80)  # RPIE enables reset-default CPSI wake
+        self.assertEqual(p.linkon_pin(), 1)
+        p.update(0, lps=True)
+        p.update(60, lps=True)
+        self.assertEqual(p.linkon_pin(), 0)
+        p.phy.registers.write(4, 0)  # LCtrl inactive; PHY interface stays operational
+        self.assertEqual(p.linkon_pin(), 1)
+        p.phy.registers.write(5, 0x10)  # clear CPSI and RPIE; latch persists
+        self.assertEqual(p.linkon_pin(), 1)
+        p.bus_reset()
+        self.assertEqual(p.linkon_pin(), 0)
