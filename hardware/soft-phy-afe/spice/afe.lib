@@ -1,0 +1,55 @@
+* SPDX-License-Identifier: CERN-OHL-S-2.0
+* Architecture model, NOT a transistor/macromodel of the named BOM parts.
+* Engineering assumptions: 4.5 m, 5.05 ns/m, 1 ohm/conductor total,
+* 5 pF shunt at each cable terminal, finite differential output impedance.
+.subckt cable p n q r
+Rlp p pt 0.5
+Rln n nt 0.5
+Tp pt 0 qt 0 Z0=55 TD=22.725n
+Tn nt 0 rt 0 Z0=55 TD=22.725n
+Rrp qt q 0.5
+Rrn rt r 0.5
+Clp p 0 5p
+Cln n 0 5p
+Crp q 0 5p
+Crn r 0 5p
+.ends cable
+
+* Signed cmd -1/0/1 selects zero/Z/one; differential branch has ZERO net CM.
+* cm current is explicitly separate, allowing source/sink mismatch/skew tests.
+* Analog rail headroom not qualified: model smoothly rolls current off beyond
+* 0.2..2.8 V common-mode, rather than pretending unlimited voltage compliance.
+.subckt driver p n cmd cm params: amp=4m mismatch=0 leak=0
+Bsig n p I={amp*v(cmd)*min(1,max(0,((v(p)+v(n))/2-0.2)/0.2))*min(1,max(0,(2.8-(v(p)+v(n))/2)/0.2))}
+BcmP 0 p I={v(cm)/2 + mismatch*abs(v(cmd))/2 - leak/2}
+BcmN 0 n I={v(cm)/2 + mismatch*abs(v(cmd))/2 - leak/2}
+Rout p n 100k
+.ends driver
+
+* Local A to remote B. Receiver loading is in cable endpoint 5p assumption.
+* TPBIAS source impedance is an assumption; opamp stability is NOT modeled.
+.subckt port_pair p n q r vref lc rc lcm rcm params: ampL=4m ampR=4m mis=0
+Xwire p n q r cable
+Rpa p ct 55
+Rna n ct 55
+Rbias vref ct 5
+Cbias ct 0 1u
+Rpb q ctr 55
+Rnb r ctr 55
+Rbleed ctr 0 5k
+Cbleed ctr 0 220p
+Xl p n lc lcm driver amp={ampL} mismatch={mis}
+Xr q r rc rcm driver amp={ampR} mismatch={mis}
+.ends port_pair
+
+* High-impedance arbitration path. 10 MHz SINGLE POLE is an assumption inspired
+* by AD8421 G=1 bandwidth, NOT its vendor model or settling guarantee.
+.subckt window p n pos neg
+Rinp p 0 30g
+Rinn n 0 30g
+Bdiff raw 0 V={v(p,n)}
+Rbw raw filtered 1k
+Cbw filtered 0 15.915p
+Bpos pos 0 V={v(filtered)>0.125 ? 1 : 0}
+Bneg neg 0 V={v(filtered)<-0.125 ? 1 : 0}
+.ends window
