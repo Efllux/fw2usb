@@ -134,3 +134,11 @@ class RegisterTest(unittest.TestCase):
         p.registers.interrupt(0x20)
         self.assertEqual(p.tick(), (1, 0))
         self.assertEqual(p.tick(), (1, 1))
+
+    def test_self_id_event_emits_physical_id_register(self):
+        p = RegisterPhy(cps=True)
+        p.self_id_complete(5, root=True)
+        self.assertTrue(p.registers.physical_id_valid)
+        self.assertEqual(p.registers.read(0), 0x17)
+        self.assertEqual([p.tick()[1] for _ in range(8)], [0, 0, 0, 0, 0, 1, 1, 3])
+        self.assertEqual(p.tick(), (0, 0))

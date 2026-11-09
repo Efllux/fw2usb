@@ -92,3 +92,27 @@ class StatusTest(unittest.TestCase):
         self.assertEqual(p.tick(), (1, 0))
         self.assertEqual(p.tick(), (1, 1))
         self.assertEqual(p.flags, 0)
+
+    def test_automatic_register_does_not_consume_new_pending_read(self):
+        p = StatusSource()
+        p.notify_register(0, 0x17)
+        self.assertEqual(p.tick(), (1, 0))
+        p.request_read(2, 0xe2)
+        rest = [p.tick()[1] for _ in range(7)]
+        self.assertEqual(rest, [0, 0, 0, 0, 1, 1, 3])
+        self.assertEqual(p.read_pending, (2, 0xe2))
+        self.assertEqual(p.tick(), (0, 0))
+        self.assertEqual([p.tick()[1] for _ in range(8)], [0, 0, 0, 2, 3, 2, 0, 2])
+        self.assertIsNone(p.read_pending)
+        self.assertEqual(p.unsolicited, [])
+
+    def test_automatic_register_retried_after_rx(self):
+        for cut in range(1, 8):
+            p = StatusSource()
+            p.notify_register(0, 0x17)
+            for _ in range(cut):
+                p.tick()
+            p.tick(receiving=True)
+            self.assertEqual(p.tick(), (0, 0))
+            self.assertEqual([p.tick()[1] for _ in range(8)], [0, 0, 0, 0, 0, 1, 1, 3])
+            self.assertEqual(p.unsolicited, [])

@@ -97,9 +97,16 @@ class StatusSource:
     def __init__(self):
         self.flags = 0
         self.read_pending = None
+        self.unsolicited = []
+        self.register_origin = None
         self.active = None
         self.index = 0
         self.idle_required = False
+
+    def notify_register(self, address, value):
+        if not 0 <= address <= 15 or not 0 <= value <= 255:
+            raise ValueError('register field out of range')
+        self.unsolicited.append((address, value))
 
     def request_read(self, address, value):
         if not 0 <= address <= 15 or not 0 <= value <= 255:
@@ -121,12 +128,17 @@ class StatusSource:
             self.idle_required = False
             return 0, 0
         if self.active is None:
-            if not self.flags and self.read_pending is None:
+            if not self.flags and self.read_pending is None and not self.unsolicited:
                 return 0, 0
             flag_pairs = [(self.flags >> 2) & 3, self.flags & 3]
             pairs = flag_pairs
-            if self.read_pending is not None:
-                address, data = self.read_pending
+            register = self.read_pending
+            self.register_origin = 'read' if register is not None else None
+            if register is None and self.unsolicited:
+                register = self.unsolicited[0]
+                self.register_origin = 'automatic'
+            if register is not None:
+                address, data = register
                 pairs = flag_pairs + [address >> 2, address & 3] + [
                     (data >> shift) & 3 for shift in (6, 4, 2, 0)]
             self.active = pairs
@@ -141,7 +153,10 @@ class StatusSource:
         self.index += 1
         if self.index == len(self.active):
             if len(self.active) == 8:
-                self.read_pending = None
+                if self.register_origin == 'read':
+                    self.read_pending = None
+                else:
+                    self.unsolicited.pop(0)
             self.active = None
             self.index = 0
             self.idle_required = True
@@ -179,6 +194,10 @@ class RegisterPhy:
         self.requests = LreqDecoder()
         self.status = StatusSource()
         self._interrupt_sequence = self.registers.interrupt_sequence
+
+    def self_id_complete(self, physical_id, *, root=False):
+        self.registers.self_id_complete(physical_id, root=root)
+        self.status.notify_register(0, self.registers.read(0))
 
     def sync_interrupts(self, *, deliver=True):
         sequence = self.registers.interrupt_sequence
