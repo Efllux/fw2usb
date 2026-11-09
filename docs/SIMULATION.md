@@ -227,3 +227,13 @@ CRC checking uses polynomial long division independently of Rust/RTL LFSRs.
 These transaction peers are behavioral models, not the H hardware transaction
 engine. Busy/retry protocol and wire-level turnaround/response deadlines remain
 unmodeled; repeated host writes are never silently replayed.
+
+G integrated datapath: LinkLayer routes PHY RX to packet/self-ID validation,
+serializes root cycle priority requests and sends actual cycle-start bytes through
+PHY TX. Speculative immediate ACK request completes during RX; bad header causes
+null cancellation; valid request/response ACK policies use pending/complete.
+Pin-level integration tests include bus-generated self-IDs and remote ROM response,
+and CRC failure cancellation. Self-ID phase and local node/root state are supplied
+by controller policy; Rust derives topology. Busy ACK retry/timeout state, full
+transaction scheduling and cable response-deadline verification remain residual
+integration work rather than claims of full normative conformance.

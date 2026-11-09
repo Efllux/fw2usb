@@ -18,6 +18,8 @@ class PacketReceiver(Elaboratable):
         self.header_good = Signal()
         self.tcode = Signal(4)
         self.length = Signal(16)
+        self.destination = Signal(16)
+        self.header_decoded = Signal()
 
     def elaborate(self, platform):
         m = Module()
@@ -42,7 +44,7 @@ class PacketReceiver(Elaboratable):
                      dcrc.valid.eq(active & self.valid & has_data & (count >= data_start) &
                                    (count < data_start + padded)),
                      hcrc.byte.eq(self.byte), dcrc.byte.eq(self.byte)]
-        m.d.sync += [self.good.eq(0), self.bad.eq(0)]
+        m.d.sync += [self.good.eq(0), self.bad.eq(0), self.header_decoded.eq(0)]
         with m.If(self.start):
             m.d.sync += [count.eq(0), hlen.eq(12), has_data.eq(0), data_length.eq(0),
                          invalid.eq(0), active.eq(1), hvalid.eq(0), self.header_good.eq(0),
@@ -56,11 +58,11 @@ class PacketReceiver(Elaboratable):
                 with m.Else():
                     m.d.sync += invalid.eq(1)
                 with m.If(count == 0):
-                    m.d.sync += data_length[8:16].eq(self.byte)
+                    m.d.sync += [data_length[8:16].eq(self.byte), self.destination[8:16].eq(self.byte)]
                 with m.If(count == 1):
-                    m.d.sync += data_length[:8].eq(self.byte)
+                    m.d.sync += [data_length[:8].eq(self.byte), self.destination[:8].eq(self.byte)]
                 with m.If(count == 3):
-                    m.d.sync += self.tcode.eq(self.byte[4:8])
+                    m.d.sync += [self.tcode.eq(self.byte[4:8]), self.header_decoded.eq(1)]
                     with m.Switch(self.byte[4:8]):
                         with m.Case(10):
                             m.d.sync += [hlen.eq(4), has_data.eq(1)]
@@ -81,7 +83,7 @@ class PacketReceiver(Elaboratable):
                     value = Cat(self.byte, received_hcrc[:24])
                     m.d.sync += received_hcrc.eq(value)
                     with m.If(count == data_start - 1):
-                        m.d.sync += hvalid.eq(value == hcrc.value)
+                        m.d.sync += [hvalid.eq(value == hcrc.value), self.header_good.eq(value == hcrc.value)]
                 with m.If(count >= data_start + padded):
                     m.d.sync += received_dcrc.eq(Cat(self.byte, received_dcrc[:24]))
             with m.If(self.end):
