@@ -113,6 +113,7 @@ class StatusSource:
 
     def tick(self, *, receiving=False):
         if receiving:
+            self.idle_required = True  # TI Figs18–19: idle after receive
             self.active = None
             self.index = 0
             return 2, 0

@@ -84,3 +84,21 @@ class PowerTest(unittest.TestCase):
             p.sample_sclk(1)
         self.assertEqual(p.phy.requests.bits, [])
         self.assertEqual(p.sample_sclk(), (0, 0))
+
+    def test_linkon_all_interrupt_combinations_latch_and_wave(self):
+        from sim.power import LinkOn
+        for reg in range(256):
+            p = LinkOn()
+            expected = bool(reg & 4 or (reg & 0x80 and reg & 0x38))
+            self.assertEqual(p.update(0, link_active=False, register5=reg), expected)
+            self.assertEqual(p.update(1, link_active=True, register5=reg), 0)
+        p = LinkOn()
+        self.assertEqual(p.update(0, link_active=False, register5=0,
+                                  addressed_packet=True), 1)
+        self.assertEqual(p.update(p.period_ns / 2, link_active=False, register5=0), 0)
+        self.assertEqual(p.update(p.period_ns, link_active=False, register5=0), 1)
+        self.assertEqual(p.update(200, link_active=False, register5=0, bus_reset=True), 0)
+        self.assertEqual(p.update(201, link_active=False, register5=4, bus_reset=True), 1)
+        # Clearing interrupt alone does not clear a latched wake indication.
+        self.assertEqual(p.update(202, link_active=False, register5=0), 1)
+        self.assertIsNone(p.update(203, link_active=False, register5=0, hardware_reset=True))

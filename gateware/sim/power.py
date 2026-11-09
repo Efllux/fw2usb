@@ -90,3 +90,41 @@ class InterfacePower:
         if self.state in ('reset', 'disabled'):
             return 0, 0
         return None
+
+
+class LinkOn:
+    """C/LKON wake latch, TI terminal table p7 and description p4.
+
+    Phase starts high at activation as a declared model convention; silicon
+    activation phase is not specified. Uses elapsed time even if SYSCLK is off.
+    """
+    def __init__(self, *, sysclk_hz=49_152_000):
+        if sysclk_hz <= 0:
+            raise ValueError('clock frequency must be positive')
+        self.period_ns = Fraction(8_000_000_000, sysclk_hz)
+        self.active = False
+        self.start_ns = Fraction(0)
+        self.now = Fraction(0)
+
+    def update(self, now_ns, *, link_active, register5, addressed_packet=False,
+               bus_reset=False, hardware_reset=False):
+        now = Fraction(now_ns)
+        if now < self.now or not 0 <= register5 <= 255:
+            raise ValueError('invalid time or interrupt register')
+        self.now = now
+        if hardware_reset:
+            self.active = False
+            return None  # strap input, high impedance during hardware reset
+        interrupt = bool(register5 & 4 or (register5 & 0x80 and register5 & 0x38))
+        was_active = self.active
+        if link_active:
+            self.active = False
+        elif bus_reset:
+            self.active = interrupt
+        elif interrupt or addressed_packet:
+            self.active = True
+        if self.active and not was_active:
+            self.start_ns = now
+        if not self.active:
+            return 0
+        return int((now - self.start_ns) % self.period_ns < self.period_ns / 2)

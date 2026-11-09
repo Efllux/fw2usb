@@ -60,6 +60,7 @@ class StatusTest(unittest.TestCase):
             p.tick(receiving=True)
             p.request_read(9, 0xff)  # ignored while original read pending
             p.bus_reset()
+            self.assertEqual(p.tick(), (0, 0))  # post-RX idle
             result = [p.tick() for _ in range(8)]
             self.assertEqual([pair for _, pair in result[2:]], [1, 2, 2, 2, 1, 1])
             self.assertIsNone(p.read_pending)
@@ -74,6 +75,7 @@ class StatusTest(unittest.TestCase):
         p.flags = 0xf
         self.assertEqual(p.tick(), (1, 3))
         p.tick(receiving=True)
+        self.assertEqual(p.tick(), (0, 0))
         self.assertEqual(p.tick(), (1, 0))
         self.assertEqual(p.tick(), (1, 3))
         self.assertEqual(p.tick(), (0, 0))

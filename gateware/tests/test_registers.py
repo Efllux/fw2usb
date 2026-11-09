@@ -92,6 +92,7 @@ class RegisterTest(unittest.TestCase):
         p.tick(receiving=True)
         p.bus_reset()
         p.registers.write(7, 0)  # snapshot survives page change and reset
+        self.assertEqual(p.tick(), (0, 0))
         pairs = [p.tick() for _ in range(8)]
         self.assertEqual([v for _, v in pairs], [0, 2, 2, 2, 0, 0, 2, 0])
         self.assertEqual(p.tick(), (0, 0))
@@ -114,6 +115,7 @@ class RegisterTest(unittest.TestCase):
                     p.tick(ctx.get(dut.lreq), receiving=True)
                     await ctx.tick()
             self.assertEqual(p.registers.read(4), 0x47)
+            self.assertEqual(p.tick(), (0, 0))
             self.assertEqual([p.tick()[1] for _ in range(8)], [0, 0, 1, 0, 1, 0, 1, 3])
 
         sim.add_testbench(bench)
