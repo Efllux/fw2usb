@@ -7,12 +7,13 @@ from fw2usb.smoke import Heartbeat
 from fw2usb.lreq import LreqSerializer
 from fw2usb.status import StatusReceiver
 from fw2usb.receive import ReceiveAdapter
+from fw2usb.transmit import TransmitAdapter
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--route', action='store_true')
-    parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive'], default='smoke')
+    parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive', 'transmit'], default='smoke')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
     out = root / 'build'
@@ -20,12 +21,14 @@ def main():
     if args.route and args.core != 'smoke':
         parser.error('only the safe smoke image has board IO constraints')
     constructors = {'smoke': Heartbeat, 'lreq': LreqSerializer,
-                    'status': StatusReceiver, 'receive': ReceiveAdapter}
+                    'status': StatusReceiver, 'receive': ReceiveAdapter, 'transmit': TransmitAdapter}
     port_names = {
         'smoke': ['led'],
         'lreq': ['valid', 'ready', 'kind', 'speed', 'address', 'data', 'accel', 'lreq'],
         'status': ['ctl', 'pair', 'flags', 'flags_valid', 'flags_mask',
                    'address', 'data', 'register_valid'],
+        'transmit': ['grant', 'speed', 'valid', 'ready', 'byte', 'last',
+                     'ctl', 'data', 'oe', 'done', 'underrun'],
         'receive': ['ctl', 'data', 'byte', 'valid', 'start', 'end', 'error', 'speed'],
     }
     dut = constructors[args.core]()

@@ -34,7 +34,7 @@ metastability are not simulated by this test.
 | `fw2usb.status.StatusReceiver` / `sim.phy.StatusSource` | Fig 17/Table 19 pp36–37: 4/16-bit emission, pairwise flag delivery (`flags_mask`), interrupted register retry, read-pending exclusion/reset persistence, idle separation; literal RTL tests at every interruption position | Real register map/value sampling, event priority, complete RX model, IO turnaround | Capture interrupted status reads and reset while read pending |
 | `fw2usb.receive.ReceiveAdapter` / `sim.phy.receive_samples` | Figs 18–19/Table 20 pp37–39: variable data-on prefix, speed decode with ignored X fields, S100/S200/S400 lane widths, MSB-first bytes, null packets, invalid speed discard, incomplete-byte error | Cable resynchronization latency, packet CRC, buffering, backpressure, active self-ID synthesis; no malformed-prefix checking | Compare real packet bytes and prefix duration against simultaneous PHY-LINK capture |
 | `sim.registers.PhyRegisters` / `sim.phy.RegisterPhy` | TI Tables 1–8 pp21–27: base/page masks, W1C, straps, two-reset gap rule, port selection, vendor identity, software hard reset; LREQ RTL→register→status tests | Register-only subset: no debounce, cable event generation, LinkOn, timed reset, unsolicited self-ID status; revision bytes require explicit fixture; read snapshots at request completion are unverified model policy | Read/write/reset traces on identified silicon revision |
-| `sim.transmit.TransmitPhy` | TI Tables 10–11/Figs20–21 pp32/39–41: explicit ownership, grant/idle turnaround, widths, optional idle, hold bound, termination, cancellation and multispeed concatenation diagnostics | Observer only; no TX RTL yet, external arbitration/grant and concatenation separation; no analog high impedance or CRC validation | Capture output enables and literal TX traces at each speed |
+| `fw2usb.transmit.TransmitAdapter` / `sim.transmit.TransmitPhy` | TI Tables 10–11/Figs20–21 pp32/39–41: explicit ownership, grant/idle turnaround, widths, optional idle, hold bound, termination, cancellation and multispeed concatenation diagnostics | RTL streams prebuffered bytes, terminates underrun with explicit error; external arbitration/grant and concatenation separation; RTL concatenation absent; no analog high impedance or CRC validation | Capture output enables and literal TX traces at each speed |
 | Rust `fw-phy-model` | Research DS, line resolution and two-node initialization; see SOFT-PHY.md | Chip PHY-LINK timing or full cable arbitration | Compare cable-level traces after electrical qualification |
 | AFE SPICE research | Behavioral cases described in hardware/soft-phy-afe/spice/RESULTS.md | Transistor/PVT compliance, digital sampler coupling | Scope skew/thresholds, calibrated models, sampling apertures |
 
@@ -52,7 +52,7 @@ only clears pending requests; it does not emulate reset timing or self-ID.
 | Area | Reference / evidence to extract | Missing behavior and acceptance test |
 |---|---|---|
 | Status/registers | TI Fig 17, Table 19 pp36–37; register Tables 1–9 | Status primitives present; integrate with LREQ and real register map; register masks/pages/reset subset implemented; cable-driven events, debounce and unsolicited self-ID status absent |
-| Receive/transmit | TI Figs 18–21, Table 20 | RX formatting primitive present; integrate packet FIFO/CRC; TX grant/turnaround, hold, concatenation and underrun absent; pin-by-pin independent reference traces still needed |
+| Receive/transmit | TI Figs 18–21, Table 20 | RX formatting primitive present; integrate packet FIFO/CRC; TX grant/turnaround and underrun adapter present; integrated scheduling and RTL hold/concatenation absent; pin-by-pin independent reference traces still needed |
 | Power and isolation-free mode | TI p2, Figs 13/22/23, Table 21, LPS/LCtrl sections | ISO high, SYSCLK enable/phase/start/stop, LinkOn, reset sequencing; startup trace comparison |
 | Multi-node cable bus | IEEE 1394/1394a arbitration clauses [exact clauses verify] | 24.576-MHz tick scheduler, independent PHY clocks, ack/subaction/arbitration-reset gaps and gap_count, fairness intervals, cycle-start priority and iso/async phase boundaries; no invented constants |
 | Reset/topology | IEEE self-ID clauses; TI PHY register behavior | Reset→tree-ID→self-ID timing, complements, root/node derivation, automatic physical-ID status, reset during active requests |
@@ -86,3 +86,11 @@ identity is substituted. Port line-state fixtures assume disconnected Z lines;
 no cable debounce or fault detector is claimed. IBR/ISBR are stored requests only:
 actual reset scheduling and durations remain absent. Software reset flushes the
 composed decoder/status engine; bus reset preserves pending register snapshots.
+
+TX RTL tests send all byte values at every width into the independent observer,
+including missing next byte and missing first byte (three-idle cancellation per
+TI recommendation). TX adapter has no CRC insertion or packet queue: upstream
+must prebuffer, and an underrun packet is invalid even if its prefix was sent.
+The byte handshake accepts a byte at its first symbol; subsequent symbols use
+a latch, so upstream may change immediately after acceptance. TX synth/check
+passes with CI-pinned tools; no external PHY pins are constrained or driven.
