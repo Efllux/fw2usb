@@ -8,6 +8,7 @@
 #![no_std]
 
 pub mod am824;
+pub mod bandwidth;
 pub mod cip;
 pub mod cycle;
 pub mod stream;

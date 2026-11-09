@@ -24,9 +24,9 @@ pub fn resolve(a: Arb, b: Arb) -> Arb {
     }
 }
 
-/// What the far end must be driving, given what we drive and what we receive.
-/// Returns `None` when the observation is ambiguous (we drive 1 or 0 and read Z, which means
-/// the far end drives the opposite value; we return that) or inconsistent.
+/// One possible remote drive consistent with the observation, not a unique inference.
+/// Equal driven/seen values cannot distinguish remote Z from the same driven value.
+/// Do not use this as interpreted arbitration; use `arb::interpret` instead.
 pub fn infer_remote(ours: Arb, seen: Arb) -> Option<Arb> {
     match (ours, seen) {
         (Arb::Z, s) => Some(s),
