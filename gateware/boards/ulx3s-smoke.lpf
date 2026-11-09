@@ -1,0 +1,9 @@
+# ULX3S v2/v3, ECP5-85F CABGA381. Only onboard oscillator/LED connected.
+LOCATE COMP "clk" SITE "G2";
+IOBUF PORT "clk" IO_TYPE=LVCMOS33;
+FREQUENCY PORT "clk" 25 MHZ;
+LOCATE COMP "led" SITE "B2";
+IOBUF PORT "led" IO_TYPE=LVCMOS33 DRIVE=4;
+# Reset is an explicit input in the Amaranth-generated top; onboard button 1.
+LOCATE COMP "rst" SITE "R1";
+IOBUF PORT "rst" IO_TYPE=LVCMOS33 PULLMODE=DOWN;
