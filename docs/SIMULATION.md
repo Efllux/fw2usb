@@ -30,7 +30,7 @@ metastability are not simulated by this test.
 |---|---|---|---|
 | `fw2usb.smoke.Heartbeat` | Onboard counter and wrap, ULX3S constraint snapshot linked in gateware README | PHY, USB, CDC, external timing | Board LED/reset observation |
 | `fw2usb.lreq.LreqSerializer` | Fig 16, Tables 12–18, pp33–35: MSB-first start/type/payload/stop, all seven defined types, full 8-cycle bus form, 9/17/6-cycle other forms; inputs latched on valid/ready | Request scheduling, power/startup, differentiation; busy requests have no queue | Capture LREQ against SCLK with every type and boundary |
-| `sim.phy.LreqDecoder` | Tables 12–18: serial receive including 7-cycle bus form; Table 15 invalid speed→null-packet indication; pp35–36 pending bus exclusion, fair/priority clear/ignore on RX, iso retained, grant/reset clear, acceleration request latch | Register semantics/status replies; actual null-packet transmission; gap/arbitration timing; read-pending state; EAA gating | Compare PHY grants and captured LREQ/RX/reset sequences |
+| `sim.phy.LreqDecoder` | Tables 12–18: serial receive including 7-cycle bus form; Table 15 invalid speed→null-packet indication; pp35–36 pending bus exclusion, fair/priority clear/ignore on RX, iso retained, grant/reset clear, acceleration request latch | Register semantics/status replies; actual null-packet transmission; gap/arbitration timing; read-pending state; packet-length detection is external; acceleration/NPA cancellation is exercised only via completed-packet fixture | Compare PHY grants and captured LREQ/RX/reset sequences |
 | `fw2usb.status.StatusReceiver` / `sim.phy.StatusSource` | Fig 17/Table 19 pp36–37: 4/16-bit emission, pairwise flag delivery (`flags_mask`), interrupted register retry, read-pending exclusion/reset persistence, idle separation; literal RTL tests at every interruption position | Real register map/value sampling, event priority, complete RX model, IO turnaround | Capture interrupted status reads and reset while read pending |
 | `fw2usb.receive.ReceiveAdapter` / `sim.phy.receive_samples` | Figs 18–19/Table 20 pp37–39: variable data-on prefix, speed decode with ignored X fields, S100/S200/S400 lane widths, MSB-first bytes, null packets, invalid speed discard, incomplete-byte error | Cable resynchronization latency, packet CRC, buffering, backpressure, active self-ID synthesis; no malformed-prefix checking | Compare real packet bytes and prefix duration against simultaneous PHY-LINK capture |
 | `sim.registers.PhyRegisters` / `sim.phy.RegisterPhy` | TI Tables 1–8 pp21–27: base/page masks, W1C, straps, two-reset gap rule, port selection, vendor identity, software hard reset; LREQ RTL→register→status tests | Register-only subset: no debounce, cable event generation, LinkOn, timed reset, unsolicited self-ID status; revision bytes require explicit fixture; read snapshots at request completion are unverified model policy | Read/write/reset traces on identified silicon revision |
@@ -129,3 +129,9 @@ transfer boundary as an explicit scheduler policy, not verified silicon priority
 Disposition of an unfinished unsolicited transfer across a second bus reset is
 still unverified: the model currently preserves its snapshot. Tree-ID/self-ID
 timing and actual packet production are not supplied by this event hook.
+
+LREQ request-loss fixtures additionally cover TI Table8 NPA and ACK/null/short
+packet distinctions with EAA and temporary acceleration enable/disable. In
+accelerated mode RX alone cannot determine request loss: the model waits for
+an explicit completed-packet bit-length event. This is not yet connected to
+a complete cable receiver and does not claim exact early-cancellation timing.

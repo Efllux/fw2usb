@@ -97,3 +97,23 @@ class LreqTest(unittest.TestCase):
                 result = p.sample(int(bit)) or result
             self.assertEqual(result.payload, speed)
             self.assertEqual(result.null_packet, speed not in (0, 2, 4))
+
+    def test_accelerated_ack_null_npa_request_preservation(self):
+        from sim.phy import Request, RequestKind
+        for eaa in (False, True):
+            for enabled in (False, True):
+                for npa in (False, True):
+                    for length in (0, 1, 7, 8, 9, 32):
+                        for kind in range(4):
+                            p = LreqDecoder()
+                            p.eaa_enabled = eaa
+                            p.acceleration_enabled = enabled
+                            p.npa = npa
+                            request = Request(RequestKind(kind), 0)
+                            p.pending_bus = request
+                            p.sample(0, receiving=True)
+                            p.receive_packet(length)
+                            accelerated = eaa and enabled
+                            loss = not accelerated or (length > 8 if npa else length != 8)
+                            self.assertEqual(p.pending_bus,
+                                             None if kind in (2, 3) and loss else request)

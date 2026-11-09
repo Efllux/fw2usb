@@ -35,6 +35,24 @@ class LreqDecoder:
         self.receiving_during_request = False
         self.pending_bus = None
         self.acceleration_enabled = True
+        self.eaa_enabled = False
+        self.npa = False
+
+    def receive_packet(self, bit_length):
+        """Completed-packet fixture for Table8 NPA/ACK request preservation.
+
+        Accelerated mode defers loss until this explicit packet-length event;
+        the boolean RX marker alone cannot distinguish an ACK from data.
+        """
+        if bit_length < 0:
+            raise ValueError('negative packet length')
+        accelerated = self.eaa_enabled and self.acceleration_enabled
+        lost = not accelerated or (bit_length > 8 if self.npa else bit_length != 8)
+        if lost:
+            if self.pending_bus and self.pending_bus.kind in (2, 3):
+                self.pending_bus = None
+            if self.bits:
+                self.receiving_during_request = True
 
     def bus_reset(self):
         # p36: pending bus requests cleared; acceleration reenabled (EAA gated
@@ -51,12 +69,13 @@ class LreqDecoder:
         if bit not in (0, 1):
             raise ValueError('LREQ must be binary')
         # p35: RX clears fair/priority, but not iso/immediate requests.
-        if receiving and self.pending_bus and self.pending_bus.kind in (2, 3):
+        accelerated = self.eaa_enabled and self.acceleration_enabled
+        if receiving and not accelerated and self.pending_bus and self.pending_bus.kind in (2, 3):
             self.pending_bus = None
         if not self.bits and bit == 0:
             return None
         self.bits.append(bit)
-        self.receiving_during_request |= receiving
+        self.receiving_during_request |= receiving and not accelerated
         if len(self.bits) < 4:
             return None
         kind = int(''.join(map(str, self.bits[1:4])), 2)
@@ -211,6 +230,8 @@ class RegisterPhy:
         self.status.bus_reset()
 
     def tick(self, lreq=0, *, receiving=False):
+        self.requests.eaa_enabled = bool(self.registers.read(5) & 2)
+        self.requests.npa = bool(self.registers.vendor & 0x80)
         request = self.requests.sample(lreq, receiving=receiving)
         if request is not None:
             if request.kind == RequestKind.READ and self.status.read_pending is None:
