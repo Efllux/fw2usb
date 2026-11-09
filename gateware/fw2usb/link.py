@@ -99,3 +99,51 @@ class SelfIdCapture(Elaboratable):
             with m.Else():
                 m.d.sync += self.error.eq(1)
         return m
+
+
+class AckReceiver(Elaboratable):
+    """ACK code/complement validation. Caller identifies the one-byte ACK frame."""
+    def __init__(self):
+        self.valid = Signal()
+        self.byte = Signal(8)
+        self.code = Signal(4)
+        self.accept = Signal()
+        self.error = Signal()
+
+    def elaborate(self, platform):
+        m = Module()
+        m.d.sync += [self.accept.eq(0), self.error.eq(0)]
+        with m.If(self.valid):
+            m.d.sync += [self.code.eq(self.byte[4:8]),
+                         self.accept.eq((self.byte[:4] ^ self.byte[4:8]) == 15),
+                         self.error.eq((self.byte[:4] ^ self.byte[4:8]) != 15)]
+        return m
+
+
+class AckDecision(Elaboratable):
+    """End-of-packet ACK policy; transaction responses use ack_pending.
+
+    Header failure, broadcast, stream and cycle-start never generate ACKs.
+    Address match and response capacity are supplied by the transaction layer.
+    """
+    def __init__(self):
+        self.end = Signal()
+        self.addressed = Signal()
+        self.broadcast = Signal()
+        self.header_good = Signal()
+        self.data_good = Signal()
+        self.capacity = Signal(init=1)
+        self.tcode = Signal(4)
+        self.valid = Signal()
+        self.byte = Signal(8)
+
+    def elaborate(self, platform):
+        m = Module()
+        code = Signal(4)
+        response = (self.tcode == 2) | (self.tcode == 6) | (self.tcode == 7) | (self.tcode == 11)
+        m.d.comb += code.eq(Mux(~self.data_good, 13, Mux(~self.capacity, 4, Mux(response, 1, 2))))
+        m.d.sync += self.valid.eq(0)
+        with m.If(self.end & self.addressed & ~self.broadcast & self.header_good &
+                  (self.tcode != 10) & (self.tcode != 8)):
+            m.d.sync += [self.valid.eq(1), self.byte.eq(Cat(~code, code))]
+        return m

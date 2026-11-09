@@ -41,6 +41,10 @@ jobs:
       - run: python gateware/build.py --core crc32
       - run: python gateware/build.py --core cycle
       - run: python gateware/build.py --core selfid
+      - run: python gateware/build.py --core packet_rx
+      - run: python gateware/build.py --core packet_tx
+      - run: python gateware/build.py --core ack
+      - run: python gateware/build.py --core cycle_master
       - run: python gateware/build.py --route
       - uses: actions/upload-artifact@v4
         with:

@@ -81,3 +81,67 @@ class LinkTest(unittest.TestCase):
 
         sim.add_testbench(bench)
         sim.run()
+
+    def test_ack_checks_and_policy(self):
+        from fw2usb.link import AckReceiver
+        dut = AckReceiver()
+        sim = Simulator(dut)
+        sim.add_clock(1 / 49_152_000)
+
+        async def bench(ctx):
+            ctx.set(dut.valid, 1)
+            for byte in range(256):
+                ctx.set(dut.byte, byte)
+                await ctx.tick()
+                good = ((byte >> 4) ^ (byte & 15)) == 15
+                self.assertEqual(ctx.get(dut.accept), good)
+                self.assertEqual(ctx.get(dut.error), not good)
+
+        sim.add_testbench(bench)
+        sim.run()
+
+    def test_cycle_start_packet_and_root_gating(self):
+        from fw2usb.cycle_master import CycleMaster
+        dut = CycleMaster()
+        sim = Simulator(dut)
+        sim.add_clock(1 / 49_152_000)
+
+        async def bench(ctx):
+            ctx.set(dut.timer.root, 1)
+            ctx.set(dut.timer.enable, 1)
+            ctx.set(dut.timer.load, 1)
+            ctx.set(dut.timer.load_value, 3071)
+            await ctx.tick()
+            ctx.set(dut.timer.load, 0)
+            await ctx.tick().repeat(2)
+            self.assertFalse(ctx.get(dut.request))
+            await ctx.tick().repeat(34)
+            self.assertTrue(ctx.get(dut.request))
+            timestamp = ctx.get(dut.timer.value)
+            ctx.set(dut.grant, 1)
+            await ctx.tick()
+            ctx.set(dut.grant, 0)
+            ctx.set(dut.ready, 1)
+            got = bytearray()
+            for _ in range(20):
+                last = False
+                if ctx.get(dut.valid):
+                    got.append(ctx.get(dut.byte))
+                    last = ctx.get(dut.last)
+                await ctx.tick()
+                if last:
+                    break
+            self.assertEqual(got[:8], bytes.fromhex('ffff008f ffc0ffff'))
+            self.assertEqual(got[8:12], bytes.fromhex('f0000200'))
+            self.assertEqual(got[12:16], timestamp.to_bytes(4, 'big'))
+            # Independent polynomial-division check, not an RTL roundtrip.
+            dividend = int.from_bytes(got[:16], 'big') << 32
+            dividend ^= 0xffffffff << (16 * 8)
+            polynomial = (1 << 32) | 0x04c11db7
+            for bit in range(dividend.bit_length()-1, 31, -1):
+                if dividend & (1 << bit):
+                    dividend ^= polynomial << (bit-32)
+            self.assertEqual(got[16:], (dividend ^ 0xffffffff).to_bytes(4, 'big'))
+
+        sim.add_testbench(bench)
+        sim.run()

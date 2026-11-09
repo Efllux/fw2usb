@@ -9,13 +9,15 @@ from fw2usb.status import StatusReceiver
 from fw2usb.receive import ReceiveAdapter
 from fw2usb.transmit import TransmitAdapter
 from fw2usb.phy_link import PhyLink
-from fw2usb.link import Crc32, CycleTimer, SelfIdCapture
+from fw2usb.link import Crc32, CycleTimer, SelfIdCapture, AckDecision
+from fw2usb.packet import PacketReceiver, PacketTransmitter
+from fw2usb.cycle_master import CycleMaster
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--route', action='store_true')
-    parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive', 'transmit', 'phy_link', 'crc32', 'cycle', 'selfid'], default='smoke')
+    parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive', 'transmit', 'phy_link', 'crc32', 'cycle', 'selfid', 'packet_rx', 'packet_tx', 'ack', 'cycle_master'], default='smoke')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
     out = root / 'build'
@@ -23,8 +25,14 @@ def main():
     if args.route and args.core != 'smoke':
         parser.error('only the safe smoke image has board IO constraints')
     constructors = {'smoke': Heartbeat, 'lreq': LreqSerializer,
-                    'status': StatusReceiver, 'receive': ReceiveAdapter, 'transmit': TransmitAdapter, 'phy_link': PhyLink, 'crc32': Crc32, 'cycle': CycleTimer, 'selfid': SelfIdCapture}
+                    'status': StatusReceiver, 'receive': ReceiveAdapter, 'transmit': TransmitAdapter, 'phy_link': PhyLink, 'crc32': Crc32, 'cycle': CycleTimer, 'selfid': SelfIdCapture, 'packet_rx': PacketReceiver, 'packet_tx': PacketTransmitter,
+                    'ack': AckDecision, 'cycle_master': CycleMaster}
     port_names = {
+        'packet_rx': ['start', 'valid', 'byte', 'end', 'phy_error', 'good', 'bad', 'header_good', 'tcode', 'length'],
+        'packet_tx': ['start', 'has_data', 'valid', 'ready', 'byte', 'header_last', 'data_last',
+                      'out_valid', 'out_ready', 'out_byte', 'out_last', 'busy'],
+        'ack': ['end', 'addressed', 'broadcast', 'header_good', 'data_good', 'capacity', 'tcode', 'valid', 'byte'],
+        'cycle_master': ['node_id', 'grant', 'request', 'valid', 'ready', 'byte', 'last'],
         'crc32': ['clear', 'valid', 'byte', 'value', 'raw'],
         'cycle': ['load', 'load_value', 'value', 'root', 'enable',
                   'cycle_start_valid', 'cycle_start_ready', 'missed'],
@@ -43,6 +51,8 @@ def main():
     }
     dut = constructors[args.core]()
     ports = [getattr(dut, name) for name in port_names[args.core]]
+    if args.core == 'cycle_master':
+        ports.extend(getattr(dut.timer, name) for name in ['root', 'enable', 'value', 'load', 'load_value', 'missed'])
     if args.core == 'phy_link':
         for interface, names in [(dut.request, ['valid', 'ready', 'kind', 'speed', 'address', 'data', 'accel']),
                                  (dut.tx, ['valid', 'ready', 'byte', 'last', 'allow_hold', 'multispeed',

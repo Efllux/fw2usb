@@ -186,3 +186,14 @@ rejects missing parents/children and discontinuous IDs. RTL cycle timer divides
 SCLK by2, wraps3072/8000/128 and queues cycle-start demand only when enabled/root,
 counting missed deadlines under backpressure. Packet scheduling/ack handling and
 actual cycle-start wire transmission are not yet integrated.
+
+G packet checkpoint: streaming RX validates header CRC, data CRC, padded wire
+length and supported tcode layouts; output bytes remain provisional until good.
+Streaming TX inserts separate CRCs and zero padding with backpressure. Rust wire
+fixtures cover zero/unaligned ISO and async quadlet read; corrupt/truncated frames
+are rejected. ACK checksum receiver and response-capacity/CRC decision logic are
+present; request matching, retry timeout and response scheduling remain next.
+CycleMaster emits the 16-byte header of IEEE1394-2008 Fig6-10 (broadcast CYCLE_TIME
+write, tcode8, priF) plus CRC. It delays grant eligibility until offset17, snapshots
+time at grant per §8.3.2.3, and requires an external priority arbiter. Physical
+PHY latency compensation and real capture correlation remain unverified.
