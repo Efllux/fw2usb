@@ -1,0 +1,9 @@
+[package]
+name = "fw-amdtp"
+version = "0.1.0"
+edition = "2021"
+description = "no_std IEC 61883-1/-6 (CIP / AMDTP / AM824) packet model for a FireWire-to-USB audio bridge"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Efllux/fw2usb"
+
+[dependencies]

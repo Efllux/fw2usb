@@ -1,0 +1,11 @@
+name: Bug
+description: Something in the code or docs is wrong
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes: { label: What happened, description: "Include hardware, versions, logs." }
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: What you expected }

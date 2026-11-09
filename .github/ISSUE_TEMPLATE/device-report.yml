@@ -1,0 +1,27 @@
+name: Device report
+description: Tell us about a FireWire device you own and can test
+labels: [device]
+body:
+  - type: input
+    id: model
+    attributes: { label: Exact make and model, placeholder: "Focusrite Saffire PRO 26 I/O (silver)" }
+    validations: { required: true }
+  - type: input
+    id: chipset
+    attributes: { label: Chipset / protocol if known, placeholder: "BeBoB / DICE / Oxford / unknown" }
+  - type: dropdown
+    id: port
+    attributes:
+      label: FireWire port on the device
+      options: [FW400 6-pin, FW400 4-pin, FW800 9-pin, multiple]
+  - type: checkboxes
+    id: can
+    attributes:
+      label: What can you do?
+      options:
+        - label: I have a computer with working FireWire (old Mac / Linux) and can capture traffic
+        - label: I can test fw2usb builds once hardware exists
+        - label: I can share a config ROM dump
+  - type: textarea
+    id: notes
+    attributes: { label: Notes, description: "Links to captures, logs, photos of the board/chips" }
