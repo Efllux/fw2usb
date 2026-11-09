@@ -72,8 +72,10 @@ class PowerTest(unittest.TestCase):
         self.assertIsNotNone(p.phy.status.read_pending)
         p.bus_reset()
         self.assertIsNotNone(p.phy.status.read_pending)
+        p.phy.requests.acceleration_enabled = False
         p.update(1000, lps=False)
         p.update(3680, lps=False)
+        self.assertFalse(p.phy.requests.acceleration_enabled)
         self.assertIsNone(p.phy.status.read_pending)
         self.assertEqual(p.phy.registers.read(4), 0xc5)
         p.bus_reset()

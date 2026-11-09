@@ -147,3 +147,11 @@ the independent observer. Illegal faster→S100/reserved concatenation releases
 the bus and pulses config_error (a bridge policy, not silicon behavior).
 The arbiter must still enforce separation and issue the next grant; the adapter
 does not schedule a second packet autonomously.
+
+Normative cross-check: [IEEE 1394a-2000, indexed primary-text mirror](https://citeseerx.ist.psu.edu/document?doi=197480bd36a167bcaf92f105894b48496237a795&repid=rep1&type=pdf),
+Table4-35 pp61–62 says interface reset leaves node variables intact. The
+composition therefore preserves temporary acceleration control across interface
+reset, unlike bus/hardware reset. Clauses4.3.5/4.3.6 expose gap equations, and
+5A provides normative PHY-LINK behavior for further cross-check. Direct PDF
+download and screenshot returned403 here; RESET_DETECT units remain unresolved
+because extracted text still reports ms. No corrected constant was guessed.

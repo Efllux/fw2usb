@@ -264,7 +264,9 @@ class PoweredRegisterPhy:
         if self._epoch != self.power.reset_epoch:
             # Interface reset differs from bus reset: pending reads and all
             # status events are discarded, but register configuration survives.
+            accelerating = self.phy.requests.acceleration_enabled
             self.phy.requests = LreqDecoder()
+            self.phy.requests.acceleration_enabled = accelerating
             self.phy.status = StatusSource()
             self._epoch = self.power.reset_epoch
         if not self.power.operational:
