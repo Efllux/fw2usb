@@ -145,3 +145,21 @@ class StatusSource:
             self.index = 0
             self.idle_required = True
         return 1, pair
+
+
+def receive_samples(payload=b'', *, speed=0, prefix_cycles=1, null=False):
+    """Synthetic Figs18–19 pin samples; data[7]=D0, ctl[1]=CTL0.
+
+    No cable propagation/resynchronization latency is inferred. Caller provides
+    the payload delivered by the cable model; this only formats PHY-LINK cycles.
+    """
+    if speed not in (0, 1, 2) or prefix_cycles < 1:
+        raise ValueError('invalid speed or missing data-on prefix')
+    yield from ((2, 255) for _ in range(prefix_cycles))
+    if not null:
+        yield 2, (0x00, 0x40, 0x50)[speed]
+        width = (2, 4, 8)[speed]
+        for byte in payload:
+            for bit in range(8 - width, -1, -width):
+                yield 2, ((byte >> bit) & ((1 << width) - 1)) << (8 - width)
+    yield 0, 0  # at least one idle after RX

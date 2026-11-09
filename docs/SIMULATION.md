@@ -32,6 +32,7 @@ metastability are not simulated by this test.
 | `fw2usb.lreq.LreqSerializer` | Fig 16, Tables 12–18, pp33–35: MSB-first start/type/payload/stop, all seven defined types, full 8-cycle bus form, 9/17/6-cycle other forms; inputs latched on valid/ready | Request scheduling, power/startup, differentiation; busy requests have no queue | Capture LREQ against SCLK with every type and boundary |
 | `sim.phy.LreqDecoder` | Tables 12–18: serial receive including 7-cycle bus form; Table 15 invalid speed→null-packet indication; pp35–36 pending bus exclusion, fair/priority clear/ignore on RX, iso retained, grant/reset clear, acceleration request latch | Register semantics/status replies; actual null-packet transmission; gap/arbitration timing; read-pending state; EAA gating | Compare PHY grants and captured LREQ/RX/reset sequences |
 | `fw2usb.status.StatusReceiver` / `sim.phy.StatusSource` | Fig 17/Table 19 pp36–37: 4/16-bit emission, pairwise flag delivery (`flags_mask`), interrupted register retry, read-pending exclusion/reset persistence, idle separation; literal RTL tests at every interruption position | Real register map/value sampling, event priority, complete RX model, IO turnaround | Capture interrupted status reads and reset while read pending |
+| `fw2usb.receive.ReceiveAdapter` / `sim.phy.receive_samples` | Figs 18–19/Table 20 pp37–39: variable data-on prefix, speed decode with ignored X fields, S100/S200/S400 lane widths, MSB-first bytes, null packets, invalid speed discard, incomplete-byte error | Cable resynchronization latency, packet CRC, buffering, backpressure, active self-ID synthesis; no malformed-prefix checking | Compare real packet bytes and prefix duration against simultaneous PHY-LINK capture |
 | Rust `fw-phy-model` | Research DS, line resolution and two-node initialization; see SOFT-PHY.md | Chip PHY-LINK timing or full cable arbitration | Compare cable-level traces after electrical qualification |
 | AFE SPICE research | Behavioral cases described in hardware/soft-phy-afe/spice/RESULTS.md | Transistor/PVT compliance, digital sampler coupling | Scope skew/thresholds, calibrated models, sampling apertures |
 
@@ -49,7 +50,7 @@ only clears pending requests; it does not emulate reset timing or self-ID.
 | Area | Reference / evidence to extract | Missing behavior and acceptance test |
 |---|---|---|
 | Status/registers | TI Fig 17, Table 19 pp36–37; register Tables 1–9 | Status primitives present; integrate with LREQ and real register map; every register reset/mask/page/side effect still absent |
-| Receive/transmit | TI Figs 18–21, Table 20 | Prefix/speed/data symbols at 2/4/8 lanes, grant/turnaround, hold, concatenation, underrun; pin-by-pin independent reference traces |
+| Receive/transmit | TI Figs 18–21, Table 20 | RX formatting primitive present; integrate packet FIFO/CRC; TX grant/turnaround, hold, concatenation and underrun absent; pin-by-pin independent reference traces still needed |
 | Power and isolation-free mode | TI p2, Figs 13/22/23, Table 21, LPS/LCtrl sections | ISO high, SYSCLK enable/phase/start/stop, LinkOn, reset sequencing; startup trace comparison |
 | Multi-node cable bus | IEEE 1394/1394a arbitration clauses [exact clauses verify] | 24.576-MHz tick scheduler, independent PHY clocks, ack/subaction/arbitration-reset gaps and gap_count, fairness intervals, cycle-start priority and iso/async phase boundaries; no invented constants |
 | Reset/topology | IEEE self-ID clauses; TI PHY register behavior | Reset→tree-ID→self-ID timing, complements, root/node derivation, automatic physical-ID status, reset during active requests |
@@ -67,5 +68,12 @@ clock/cycle metadata and known omissions. See [capture inventory](../captures/RE
 ## Reproduction
 
 Run commands in gateware/README.md. CI additionally synthesizes LREQ independently;
-status is synthesized too; only the safe heartbeat is routed to real pins. No model failure may be waived
+status and RX are synthesized too; only the safe heartbeat is routed to real pins. No model failure may be waived
 by substituting an encoder/decoder round trip for an independently sourced vector.
+
+Receive test adds all 256 byte values at each of three speeds, a literal S100
+A5 pin trace, data-on/null cases, ignored speed X fields, invalid codes and partial
+byte termination. Error and end are independent strobes; an invalid speed reports
+an error immediately, and the later end still closes that receive operation.
+Consumers must retain error state for the packet. There is no backpressure: a
+future packet FIFO must explicitly report overflow rather than dropping bytes.

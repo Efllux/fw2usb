@@ -6,24 +6,30 @@ from amaranth.back import rtlil
 from fw2usb.smoke import Heartbeat
 from fw2usb.lreq import LreqSerializer
 from fw2usb.status import StatusReceiver
+from fw2usb.receive import ReceiveAdapter
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--route', action='store_true')
-    parser.add_argument('--core', choices=['smoke', 'lreq', 'status'], default='smoke')
+    parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive'], default='smoke')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
     out = root / 'build'
     out.mkdir(exist_ok=True)
     if args.route and args.core != 'smoke':
         parser.error('only the safe smoke image has board IO constraints')
-    dut = {'smoke': Heartbeat, 'lreq': LreqSerializer, 'status': StatusReceiver}[args.core]()
-    ports = [dut.led] if args.core == 'smoke' else [
-        dut.valid, dut.ready, dut.kind, dut.speed, dut.address,
-        dut.data, dut.accel, dut.lreq] if args.core == 'lreq' else [
-            dut.ctl, dut.pair, dut.flags, dut.flags_valid, dut.flags_mask,
-            dut.address, dut.data, dut.register_valid]
+    constructors = {'smoke': Heartbeat, 'lreq': LreqSerializer,
+                    'status': StatusReceiver, 'receive': ReceiveAdapter}
+    port_names = {
+        'smoke': ['led'],
+        'lreq': ['valid', 'ready', 'kind', 'speed', 'address', 'data', 'accel', 'lreq'],
+        'status': ['ctl', 'pair', 'flags', 'flags_valid', 'flags_mask',
+                   'address', 'data', 'register_valid'],
+        'receive': ['ctl', 'data', 'byte', 'valid', 'start', 'end', 'error', 'speed'],
+    }
+    dut = constructors[args.core]()
+    ports = [getattr(dut, name) for name in port_names[args.core]]
     (out / f'{args.core}.il').write_text(rtlil.convert(dut, name=args.core, ports=ports))
     subprocess.run(['yosys', '-p',
                     f'read_rtlil {args.core}.il; synth_ecp5 -top {args.core} -json {args.core}.json; check -assert'],
