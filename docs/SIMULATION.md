@@ -37,6 +37,7 @@ metastability are not simulated by this test.
 | `fw2usb.transmit.TransmitAdapter` / `sim.transmit.TransmitPhy` | TI Tables 10–11/Figs20–21 pp32/39–41: explicit ownership, grant/idle turnaround, widths, optional idle, hold bound, termination, cancellation and multispeed concatenation diagnostics | RTL streams prebuffered bytes, terminates underrun with explicit error; external arbitration/grant and concatenation separation; RTL concatenation absent; no analog high impedance or CRC validation | Capture output enables and literal TX traces at each speed |
 | `sim.power.InterfacePower` / `sim.phy.PoweredRegisterPhy` | TI Table21/Fig27 pp42–47: rational wall-time level-LPS recognition, selected min/max timing corners, stopped-clock wake, seven zero cycles then data-on/idle, interface reset flush vs bus reset persistence | ISO=1 level LPS only; no pulse decoder/clock waveform; standalone LinkOn latch below, external full-cycle samples, no full chip software-reset power sequencing | Compare startup, low-power wake and LPS timing at clock pins |
 | `sim.power.LinkOn` | TI p7 C/LKON terminal definition: interrupt gating, addressed wake latch, bus-reset clearing, eight-SYSCLK period and hardware-reset high impedance | Standalone; cable packet recognition and power/register integration absent; initial wave phase is declared model convention | Capture activation phase, wake behavior and strap handoff |
+| `sim.clocks.Clock` / library FIFO research harness | Exact rational independent frequency/phase offsets and deterministic edge jitter; tests Amaranth AsyncFIFOBuffered under opposite ±100 ppm SCLK/USB, burst stalls and coordinated testbench reset | Synthetic stimulus; no bridge CDC/epoch controller, metastability, reset release circuit or physical clock source | CDC structural review and physical drift/reset captures |
 | Rust `fw-phy-model` | Research DS, line resolution and two-node initialization; see SOFT-PHY.md | Chip PHY-LINK timing or full cable arbitration | Compare cable-level traces after electrical qualification |
 | AFE SPICE research | Behavioral cases described in hardware/soft-phy-afe/spice/RESULTS.md | Transistor/PVT compliance, digital sampler coupling | Scope skew/thresholds, calibrated models, sampling apertures |
 
@@ -108,3 +109,9 @@ Status source now enforces the required idle after RX before retrying status.
 LinkOn tests exhaust all 256 interrupt/control combinations and check waveform,
 latch, bus reset and hardware reset. The standalone model receives the decoded
 addressed-wake event; it does not recognize cable packets by itself.
+
+CDC research uses [Amaranth 0.5.8 FIFO documentation](https://amaranth-lang.org/docs/amaranth/v0.5.8/stdlib/fifo.html).
+The test transfers 1024 ordered words with independent jittered 49.152/60 MHz
+clocks and opposite drift signs, forces full/backpressure, and verifies old words
+are flushed by a testbench-coordinated reset. This validates the simulation
+harness/library use, not an implemented bridge reset/epoch protocol.
