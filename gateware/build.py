@@ -27,7 +27,7 @@ def main():
         'lreq': ['valid', 'ready', 'kind', 'speed', 'address', 'data', 'accel', 'lreq'],
         'status': ['ctl', 'pair', 'flags', 'flags_valid', 'flags_mask',
                    'address', 'data', 'register_valid'],
-        'transmit': ['grant', 'speed', 'valid', 'ready', 'byte', 'last',
+        'transmit': ['grant', 'speed', 'allow_hold', 'valid', 'ready', 'byte', 'last',
                      'ctl', 'data', 'oe', 'done', 'underrun'],
         'receive': ['ctl', 'data', 'byte', 'valid', 'start', 'end', 'error', 'speed'],
     }

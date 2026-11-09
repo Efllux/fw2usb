@@ -50,3 +50,45 @@ class TransmitRtlTest(unittest.TestCase):
 
         sim.add_testbench(bench)
         sim.run()
+
+    def test_initial_hold_limit_and_timeout(self):
+        for wait in (0, 1, 47, 48):
+            dut = TransmitAdapter()
+            sim = Simulator(dut)
+            sim.add_clock(1 / 49_152_000)
+
+            async def bench(ctx):
+                p = TransmitPhy()
+                p.grant(2)
+                ctx.set(dut.speed, 2)
+                ctx.set(dut.allow_hold, 1)
+                ctx.set(dut.grant, 1)
+                p.tick()
+                await ctx.tick()
+                ctx.set(dut.grant, 0)
+                p.tick()
+                await ctx.tick()
+                for _ in range(min(wait, 47)):
+                    self.assertEqual(ctx.get(dut.ctl), 1)
+                    p.tick(ctx.get(dut.ctl), ctx.get(dut.data))
+                    await ctx.tick()
+                if wait <= 47:
+                    ctx.set(dut.valid, 1)
+                    ctx.set(dut.byte, 0xa5)
+                    ctx.set(dut.last, 1)
+                errors = 0
+                for _ in range(8):
+                    p.tick(ctx.get(dut.ctl) if ctx.get(dut.oe) else None,
+                           ctx.get(dut.data))
+                    await ctx.tick()
+                    errors += ctx.get(dut.underrun)
+                    if ctx.get(dut.done):
+                        break
+                else:
+                    self.fail('hold timeout failed to terminate')
+                self.assertEqual(errors, int(wait > 47))
+                self.assertEqual(p.completed[0].payload, b'\xa5' if wait <= 47 else b'')
+                self.assertEqual(p.tick(), 0)
+
+            sim.add_testbench(bench)
+            sim.run()

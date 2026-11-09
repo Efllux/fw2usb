@@ -55,7 +55,7 @@ only clears pending requests; it does not emulate reset timing or self-ID.
 | Area | Reference / evidence to extract | Missing behavior and acceptance test |
 |---|---|---|
 | Status/registers | TI Fig 17, Table 19 pp36–37; register Tables 1–9 | Status primitives present; LREQ/register masks/pages/reset/interrupt subset implemented; cable-driven events/debounce absent; explicit self-ID-complete event emits register0 status |
-| Receive/transmit | TI Figs 18–21, Table 20 | RX formatting primitive present; integrate packet FIFO/CRC; TX grant/turnaround and underrun adapter present; integrated scheduling and RTL hold/concatenation absent; pin-by-pin independent reference traces still needed |
+| Receive/transmit | TI Figs 18–21, Table 20 | RX formatting primitive present; integrate packet FIFO/CRC; TX grant/turnaround and underrun adapter present; integrated scheduling and RTL concatenation absent; pin-by-pin independent reference traces still needed |
 | Power and isolation-free mode | TI p2, Figs 13/22/23, Table 21, LPS/LCtrl sections | Level LPS and software reset/LinkOn composition present; pulsed LPS and actual clock phase/edges still absent; startup trace comparison |
 | Multi-node cable bus | IEEE 1394/1394a arbitration clauses [exact clauses verify] | 24.576-MHz tick scheduler, independent PHY clocks, ack/subaction/arbitration-reset gaps and gap_count, fairness intervals, cycle-start priority and iso/async phase boundaries; no invented constants |
 | Reset/topology | IEEE self-ID clauses; TI PHY register behavior | Reset→tree-ID→self-ID timing, complements, root/node derivation, automatic physical-ID status has explicit event hook only; topology engine and reset during active cable operations absent |
@@ -135,3 +135,8 @@ packet distinctions with EAA and temporary acceleration enable/disable. In
 accelerated mode RX alone cannot determine request loss: the model waits for
 an explicit completed-packet bit-length event. This is not yet connected to
 a complete cable receiver and does not claim exact early-cancellation timing.
+
+TX RTL now optionally waits in hold before its first data byte, bounded at
+47 cycles (TI Fig20); wait48 cancels with underrun. Tests cover zero/one/47
+holds and the timeout boundary against the independent observer. A hold does
+not permit gaps inside packet data.

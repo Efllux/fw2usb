@@ -11,6 +11,7 @@ class TransmitAdapter(Elaboratable):
     def __init__(self):
         self.grant = Signal()  # sampled PHY CTL=11, caller qualifies ownership
         self.speed = Signal(2)
+        self.allow_hold = Signal()  # permit up to 47 initial wait cycles
         self.valid = Signal()
         self.ready = Signal()
         self.byte = Signal(8)
@@ -29,6 +30,8 @@ class TransmitAdapter(Elaboratable):
         last = Signal()
         tail = Signal(2)
         started = Signal()
+        allow_hold = Signal()
+        holds = Signal(range(48))
         current = Signal(8)
         final_lane = Signal()
         m.d.comb += [current.eq(Mux(index == 0, self.byte, saved)),
@@ -38,16 +41,21 @@ class TransmitAdapter(Elaboratable):
         with m.FSM():
             with m.State('WAIT'):
                 with m.If(self.grant):
-                    m.d.sync += [speed.eq(self.speed), index.eq(0), started.eq(0)]
+                    m.d.sync += [speed.eq(self.speed), index.eq(0), started.eq(0),
+                                 allow_hold.eq(self.allow_hold), holds.eq(0)]
                     m.next = 'TURN'
             with m.State('TURN'):
                 # PHY drives idle following grant; LLC remains high impedance.
                 m.next = 'SEND'
             with m.State('SEND'):
                 m.d.comb += self.oe.eq(1)
-                with m.If(((index == 0) & ~self.valid) | (speed == 3)):
+                with m.If((index == 0) & ~self.valid & allow_hold &
+                          ~started & (holds < 47) & (speed != 3)):
+                    m.d.comb += self.ctl.eq(1)
+                    m.d.sync += holds.eq(holds + 1)
+                with m.Elif(((index == 0) & ~self.valid) | (speed == 3)):
                     # First idle of termination is driven in this cycle.
-                    m.d.sync += [self.underrun.eq(1), tail.eq(~started)]
+                    m.d.sync += [self.underrun.eq(1), tail.eq(~started & (holds == 0))]
                     m.next = 'TAIL'
                 with m.Else():
                     m.d.comb += [self.ctl.eq(2), self.ready.eq(index == 0)]
