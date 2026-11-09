@@ -9,12 +9,13 @@ from fw2usb.status import StatusReceiver
 from fw2usb.receive import ReceiveAdapter
 from fw2usb.transmit import TransmitAdapter
 from fw2usb.phy_link import PhyLink
+from fw2usb.link import Crc32, CycleTimer, SelfIdCapture
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--route', action='store_true')
-    parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive', 'transmit', 'phy_link'], default='smoke')
+    parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive', 'transmit', 'phy_link', 'crc32', 'cycle', 'selfid'], default='smoke')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
     out = root / 'build'
@@ -22,8 +23,13 @@ def main():
     if args.route and args.core != 'smoke':
         parser.error('only the safe smoke image has board IO constraints')
     constructors = {'smoke': Heartbeat, 'lreq': LreqSerializer,
-                    'status': StatusReceiver, 'receive': ReceiveAdapter, 'transmit': TransmitAdapter, 'phy_link': PhyLink}
+                    'status': StatusReceiver, 'receive': ReceiveAdapter, 'transmit': TransmitAdapter, 'phy_link': PhyLink, 'crc32': Crc32, 'cycle': CycleTimer, 'selfid': SelfIdCapture}
     port_names = {
+        'crc32': ['clear', 'valid', 'byte', 'value', 'raw'],
+        'cycle': ['load', 'load_value', 'value', 'root', 'enable',
+                  'cycle_start_valid', 'cycle_start_ready', 'missed'],
+        'selfid': ['start', 'valid', 'byte', 'end', 'packet', 'accept', 'error',
+                   'physical_id', 'ports'],
         'phy_link': ['enable', 'bus_reset', 'ctl_in', 'data_in', 'ctl_out',
                      'data_out', 'oe', 'lreq', 'pending', 'read_pending'],
         'smoke': ['led'],
