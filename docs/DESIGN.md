@@ -1,6 +1,7 @@
 # fw2usb: a FireWire → USB bridge with no Linux inside
 
-Goal: plug a FireWire audio interface (Saffire PRO 10/26/24/40 first) into an M4 MacBook Air
+Goal: plug FireWire audio interfaces across BeBoB, DICE, Oxford, Fireworks, MOTU,
+RME, Digi00x, TASCAM and generic AV/C families into an M4 MacBook Air
 over **plain USB**, with no Thunderbolt dongles, no Mac mini or Raspberry Pi running Linux,
 and no kernel driver on the Mac.
 
@@ -45,21 +46,64 @@ boards already do exactly this (FPGA link layer + discrete TI PHY), with
 [open Verilog](https://github.com/jhu-cisst/mechatronics-firmware), so we can study a proven
 reference instead of starting from a blank page.
 
-### What the Mac sees: two firmware personalities
+### Three product tiers
 
-1. **Class-compliant mode (target for daily use):** USB Audio Class 2.0, asynchronous with a
-   feedback endpoint. The Mac's built-in driver handles it, like your UR44. The bridge
-   firmware knows the device's stream format (channel count, AV/C/BeBoB start sequence) and
-   runs it standalone. Mixer/routing controls go to a Rust app over a vendor USB
-   interface (same pattern as your UR44 app).
-2. **Raw-link mode (for "universal"):** the bridge exposes a vendor-class USB interface that
-   carries raw 1394 async transactions + iso packets. All intelligence lives in a Rust
-   user-space library on the Mac (libusb, no kernel extension, no entitlements). That
-   gives SBP-2 disks, DV cameras and other audio interfaces, all as software. Audio in this
-   mode would surface through a user-space CoreAudio AudioServerPlugIn, which needs no
-   DriverKit entitlement.
+The reference adapter supports all audio protocol families through per-family
+profiles, plus raw transactions for other devices. Chip-PHY S100/S200/S400 is the
+reference path; experimental S100 soft PHY does not set the product speed ceiling.
+No Linux runs inside the adapter. USB2 payload and FireWire peak reservations
+must both pass admission checks before exposing an audio alternate setting.
 
-Same hardware for both, so build raw-link first (it's the debugging tool for everything else).
+1. **Out of the box:** one composite USB configuration includes UAC2 asynchronous
+   capture/playback and explicit playback feedback, plus the vendor interface.
+   The attached FireWire device is clock master. Use SYT-derived actual rate for
+   timestamped AMDTP; custom families need their own timestamp/clock estimator.
+   Feedback follows that measured clock, never USB SOF. No SRC. Missing external
+   clock causes a reported unlock and bounded stream stop, not silent clock drift.
+2. **Companion app:** the vendor-specific interface is always present in that
+   same configuration. Mixer, routing, clock, sample-rate, configuration and
+   update preparation use it while audio continues. Rate/layout changes requiring
+   new descriptors require an explicit stopped-stream transition; mixer writes
+   cannot silently reset the bus or USB device. See [control protocol](protocol/control.md).
+3. **Raw FireWire port:** explicit app command persists the selected personality,
+   quiesces DMA and re-enumerates with a different PID. UAC2 is absent in raw mode.
+   Hold the physical button at plug-in to override persistence and recover tier 1.
+   A libraw1394-compatible shim over libusb supplies FFADO's raw access; investigate
+   its other Linux dependencies before claiming drop-in FFADO compatibility.
+   A CoreAudio AudioServerPlugIn supplies user-space Mac audio without DriverKit
+   entitlement. Signing, installation and Apple Silicon hosting still need a
+   working prototype. A Linux kernel driver is a later option. Raw mode can support
+   obscure audio, SBP-2 storage, DV and HDV through separate host protocol stacks;
+   tunneling alone does not mount a disk or create an OS camera device.
+
+Raw-link is built early as the diagnostic path. The tiers describe user experience,
+not three simultaneous audio engines. USB2 cannot transparently forward full
+FireWire S800 line rate. See [raw protocol](protocol/raw-tunnel.md).
+
+### Updates and recovery
+
+Expose USB DFU runtime detach in either personality. Enter a dedicated DFU
+configuration only after stopping streams; updating flash is not an uninterrupted
+live-audio operation. Use two SPI image slots plus a write-protected factory golden
+image, with ECP5 multiboot/fallback supervised by the boot controller. Exact flash
+map, bitstream offsets and watchdog fallback mechanism require board selection.
+An FPGA configuration CRC detects damage, not authenticity.
+
+Proposed signed manifest: canonical CBOR with schema, board ID/revision, component,
+version, monotonic security epoch, length, SHA-256 payload digest and dependencies;
+Ed25519 signature over a domain separator and the canonical manifest. Verify with
+an immutable boot trust anchor before marking a slot pending. Boot pending once,
+require health acknowledgement, then atomically commit; interrupted download or
+failed self-test rolls back. Duplicate journal records with sequence/CRC tolerate
+power loss. Rollback protection needs protected monotonic storage; plain SPI flash
+alone cannot enforce it against physical rewriting. Define offline root rotation
+and recovery authorization before production. Golden recovery must validate updates
+and must never be overwritten by normal DFU.
+
+Profiles are separately signed, bounded data blobs, independently versioned from
+firmware/gateware. No arbitrary downloaded code or vendor binaries. Firmware
+interprets a finite allowlisted operation set; length, ranges and timeouts are
+validated before applying register operations. See [profile schema](protocol/profiles.md).
 
 ### Clocking (the hard part, and the plan for it)
 
