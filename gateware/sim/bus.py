@@ -172,5 +172,8 @@ class Bus:
                     self.schedule(end + self._distance(node, receiver)*self.propagation_ns,
                                   lambda r=receiver: self._deliver(r, 'packet', frame))
             self.busy_until = end + max(self._distance(node, r) for r in range(self.nodes))*self.propagation_ns
-            self.schedule(self.busy_until, self._arbitrate)
+            def finished():
+                self._deliver(node, 'transmitted', frame)
+                self._arbitrate()
+            self.schedule(self.busy_until, finished)
         self.schedule(max(self.now, self.busy_until) + delay, choose)

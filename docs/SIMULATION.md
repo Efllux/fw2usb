@@ -209,3 +209,21 @@ nodes support up to3 ports; they are not all TSB41AB2 instances. Prefix/end/rese
 corners and nominal gap equations are sourced in SOFT-PHY.md; no uncertain
 RESET_DETECT constant is used. Independent PHY clocks remain in the pin-level
 harness rather than this opaque-frame scheduler.
+
+Remote protocol fixtures: `sim.devices` uses synthetic ROMs with computed CRC16,
+CSR/IRM values and bounded atomic compare-swap. BeBoB models PCR connections,
+playback-before-capture priming and FCP rejection of unsupported opcodes. DICE
+models section pointers, 64-bit owner CAS, clock acceptance notification, channel/
+speed/enable ordering and bus-reset ownership loss. DICE wire facts were checked
+against [pinned interface definitions](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/dice/dice-interface.h),
+not copied as executable code. Actual vendor ROMs, mixer controls, model-specific
+AV/C capability replies, autonomous clock timers and audio engines remain absent.
+
+`sim.transactions` connects remote fixtures through real async wire headers,
+header/data CRCs, ACK pending/complete, quadlet/block reads/writes, CAS32/CAS64,
+transaction labels, timeout tokens and reset-generation cancellation. A three-node
+test reads the complete remote ROM, connects a BeBoB PCR and claims DICE ownership.
+CRC checking uses polynomial long division independently of Rust/RTL LFSRs.
+These transaction peers are behavioral models, not the H hardware transaction
+engine. Busy/retry protocol and wire-level turnaround/response deadlines remain
+unmodeled; repeated host writes are never silently replayed.
