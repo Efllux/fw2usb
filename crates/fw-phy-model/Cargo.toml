@@ -1,0 +1,9 @@
+[package]
+name = "fw-phy-model"
+version = "0.1.0"
+edition = "2021"
+description = "no_std bit-level reference model of an IEEE 1394a cable PHY (DS coding, line states, self-ID) for the fw2usb soft-PHY research"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Efllux/fw2usb"
+
+[dependencies]

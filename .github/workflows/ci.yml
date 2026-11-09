@@ -17,4 +17,4 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --all
       - name: no_std cross-build (firmware target)
-        run: cargo build -p fw-amdtp --target thumbv7em-none-eabihf
+        run: cargo build --workspace --lib --target thumbv7em-none-eabihf

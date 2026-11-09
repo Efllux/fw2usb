@@ -37,5 +37,13 @@ Milestones are deliberately small so several people can work in parallel. Detail
 - [ ] Optional bus power (12 V boost) for bus-powered devices
 - [ ] Small batch, testers, assembly guide
 
+## Research track: soft PHY (no PHY chip)
+See [docs/SOFT-PHY.md](docs/SOFT-PHY.md). Runs in parallel; the chip-PHY path stays the fallback.
+- [x] `fw-phy-model`: DS line code, arbitration line resolution, self-ID packet #0
+- [ ] Transcribe arbitration signal tables + PHY state machines (reset, tree-ID, self-ID) from the spec
+- [ ] SPICE the analog front-end (driver, window comparators, TPBIAS, connect detect)
+- [ ] Passive bring-up: see a Saffire's bus reset/self-ID through the AFE
+- [ ] Active: send our self-ID, become root at S100
+
 ## Later
 - SBP-2 disks over raw-link (host-side), DV capture, MOTU/RME/Apogee profiles, Windows/Linux host support.

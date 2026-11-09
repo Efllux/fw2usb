@@ -26,6 +26,7 @@ join and shape it.
 |---|---|
 | [Design](docs/DESIGN.md) | first draft |
 | `crates/fw-amdtp` (audio packet format, timing) | ✅ tested |
+| `crates/fw-phy-model` (soft-PHY research model) | ✅ tested, early |
 | `gateware/` (FPGA 1394 link layer) | not started |
 | `host/` (Rust host tools) | not started |
 | `hardware/` (PCB) | not started |

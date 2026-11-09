@@ -84,6 +84,11 @@ PHY config packet), so we must provide:
 - **AV/C (FCP)** commands for sample rate / plug formats (FFADO's BeBoB code documents
   these for the Saffire PRO 10/26).
 
+## Research: no PHY chip at all
+
+We're also exploring an FPGA "soft PHY" at S100 with a small analog front-end, which would remove the
+dependency on obsolete PHY chips. See [SOFT-PHY.md](SOFT-PHY.md).
+
 ## Hardware bring-up plan
 
 | Phase | Hardware | Proves | Rough cost |
