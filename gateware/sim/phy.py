@@ -134,9 +134,9 @@ class StatusSource:
         # p36: flags delivered immediately; interrupted transfer retries only
         # unsent flags and/or a register whose last data pair was not sent.
         if self.index == 0:
-            self.flags &= 0b0011
+            self.flags &= ~(pair << 2)
         elif self.index == 1:
-            self.flags &= 0b1100
+            self.flags &= ~pair
         self.index += 1
         if self.index == len(self.active):
             if len(self.active) == 8:
@@ -196,3 +196,32 @@ class RegisterPhy:
                     self.requests = LreqDecoder()
                     self.status = StatusSource()
         return self.status.tick(receiving=receiving)
+
+
+class PoweredRegisterPhy:
+    """Direct ISO=1 level-LPS composition; no cable/arbitration engine yet."""
+    def __init__(self, *, power=None, **straps):
+        from sim.power import InterfacePower
+        self.power = power if power is not None else InterfacePower()
+        self.phy = RegisterPhy(**straps)
+        self._epoch = self.power.reset_epoch
+
+    def update(self, now_ns, *, lps, ports_active=True):
+        self.power.update(now_ns, lps=lps, ports_active=ports_active)
+        if self._epoch != self.power.reset_epoch:
+            # Interface reset differs from bus reset: pending reads and all
+            # status events are discarded, but register configuration survives.
+            self.phy.requests = LreqDecoder()
+            self.phy.status = StatusSource()
+            self._epoch = self.power.reset_epoch
+
+    def bus_reset(self):
+        self.phy.bus_reset()
+        if not self.power.operational:
+            self.phy.status = StatusSource()  # inactive events are not queued
+
+    def sample_sclk(self, lreq=0, *, receiving=False):
+        forced = self.power.sample_sclk()
+        if forced is not None:
+            return forced
+        return self.phy.tick(lreq, receiving=receiving)

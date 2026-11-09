@@ -35,6 +35,7 @@ metastability are not simulated by this test.
 | `fw2usb.receive.ReceiveAdapter` / `sim.phy.receive_samples` | Figs 18–19/Table 20 pp37–39: variable data-on prefix, speed decode with ignored X fields, S100/S200/S400 lane widths, MSB-first bytes, null packets, invalid speed discard, incomplete-byte error | Cable resynchronization latency, packet CRC, buffering, backpressure, active self-ID synthesis; no malformed-prefix checking | Compare real packet bytes and prefix duration against simultaneous PHY-LINK capture |
 | `sim.registers.PhyRegisters` / `sim.phy.RegisterPhy` | TI Tables 1–8 pp21–27: base/page masks, W1C, straps, two-reset gap rule, port selection, vendor identity, software hard reset; LREQ RTL→register→status tests | Register-only subset: no debounce, cable event generation, LinkOn, timed reset, unsolicited self-ID status; revision bytes require explicit fixture; read snapshots at request completion are unverified model policy | Read/write/reset traces on identified silicon revision |
 | `fw2usb.transmit.TransmitAdapter` / `sim.transmit.TransmitPhy` | TI Tables 10–11/Figs20–21 pp32/39–41: explicit ownership, grant/idle turnaround, widths, optional idle, hold bound, termination, cancellation and multispeed concatenation diagnostics | RTL streams prebuffered bytes, terminates underrun with explicit error; external arbitration/grant and concatenation separation; RTL concatenation absent; no analog high impedance or CRC validation | Capture output enables and literal TX traces at each speed |
+| `sim.power.InterfacePower` / `sim.phy.PoweredRegisterPhy` | TI Table21/Fig27 pp42–47: rational wall-time level-LPS recognition, selected min/max timing corners, stopped-clock wake, seven zero cycles then data-on/idle, interface reset flush vs bus reset persistence | ISO=1 level LPS only; no pulse decoder/LinkOn/clock waveform, external full-cycle samples, no full chip software-reset power sequencing | Compare startup, low-power wake and LPS timing at clock pins |
 | Rust `fw-phy-model` | Research DS, line resolution and two-node initialization; see SOFT-PHY.md | Chip PHY-LINK timing or full cable arbitration | Compare cable-level traces after electrical qualification |
 | AFE SPICE research | Behavioral cases described in hardware/soft-phy-afe/spice/RESULTS.md | Transistor/PVT compliance, digital sampler coupling | Scope skew/thresholds, calibrated models, sampling apertures |
 
@@ -94,3 +95,10 @@ must prebuffer, and an underrun packet is invalid even if its prefix was sent.
 The byte handshake accepts a byte at its first symbol; subsequent symbols use
 a latch, so upstream may change immediately after acceptance. TX synth/check
 passes with CI-pinned tools; no external PHY pins are constrained or driven.
+
+Power tests cover TI recognition/wake timing corners and short LPS dropouts.
+Clock waveform generation remains external: power model consumes elapsed wall
+time and full-cycle samples; it does not generate analog edge/phase behavior.
+Powered composition flushes read/status on interface reset and discards inactive
+bus-reset flags. Full software-hard-reset power sequencing remains unintegrated.
+Status source preserves new flag bits arriving after its active snapshot.

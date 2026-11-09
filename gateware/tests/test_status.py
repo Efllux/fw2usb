@@ -78,3 +78,15 @@ class StatusTest(unittest.TestCase):
         self.assertEqual(p.tick(), (1, 3))
         self.assertEqual(p.tick(), (0, 0))
         self.assertEqual(p.tick(), (0, 0))
+
+    def test_new_flags_during_active_snapshot_are_retained(self):
+        p = StatusSource()
+        p.flags = 0b1000
+        self.assertEqual(p.tick(), (1, 2))
+        p.flags |= 0b0001  # arrives after snapshot, before second pair
+        self.assertEqual(p.tick(), (1, 0))
+        self.assertEqual(p.flags, 1)
+        self.assertEqual(p.tick(), (0, 0))
+        self.assertEqual(p.tick(), (1, 0))
+        self.assertEqual(p.tick(), (1, 1))
+        self.assertEqual(p.flags, 0)
