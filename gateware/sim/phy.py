@@ -163,3 +163,36 @@ def receive_samples(payload=b'', *, speed=0, prefix_cycles=1, null=False):
             for bit in range(8 - width, -1, -width):
                 yield 2, ((byte >> bit) & ((1 << width) - 1)) << (8 - width)
     yield 0, 0  # at least one idle after RX
+
+
+class RegisterPhy:
+    """SCLK-stepped LREQ/register/status composition, isolation-free subset.
+
+    Reads snapshot on request completion (explicit model policy, not verified
+    silicon timing). RX preempts status; bus reset preserves the captured read.
+    No arbitration grant, LPS clock gating or cable state machine is implied.
+    """
+    def __init__(self, **straps):
+        from sim.registers import PhyRegisters
+        self.registers = PhyRegisters(**straps)
+        self.requests = LreqDecoder()
+        self.status = StatusSource()
+
+    def bus_reset(self):
+        self.registers.bus_reset()
+        self.requests.bus_reset()
+        self.status.bus_reset()
+
+    def tick(self, lreq=0, *, receiving=False):
+        request = self.requests.sample(lreq, receiving=receiving)
+        if request is not None:
+            if request.kind == RequestKind.READ and self.status.read_pending is None:
+                address = request.payload
+                self.status.request_read(address, self.registers.read(address))
+            elif request.kind == RequestKind.WRITE:
+                epoch = self.registers.reset_epoch
+                self.registers.write(request.payload >> 8, request.payload & 255)
+                if epoch != self.registers.reset_epoch:
+                    self.requests = LreqDecoder()
+                    self.status = StatusSource()
+        return self.status.tick(receiving=receiving)

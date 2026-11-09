@@ -33,6 +33,7 @@ metastability are not simulated by this test.
 | `sim.phy.LreqDecoder` | Tables 12–18: serial receive including 7-cycle bus form; Table 15 invalid speed→null-packet indication; pp35–36 pending bus exclusion, fair/priority clear/ignore on RX, iso retained, grant/reset clear, acceleration request latch | Register semantics/status replies; actual null-packet transmission; gap/arbitration timing; read-pending state; EAA gating | Compare PHY grants and captured LREQ/RX/reset sequences |
 | `fw2usb.status.StatusReceiver` / `sim.phy.StatusSource` | Fig 17/Table 19 pp36–37: 4/16-bit emission, pairwise flag delivery (`flags_mask`), interrupted register retry, read-pending exclusion/reset persistence, idle separation; literal RTL tests at every interruption position | Real register map/value sampling, event priority, complete RX model, IO turnaround | Capture interrupted status reads and reset while read pending |
 | `fw2usb.receive.ReceiveAdapter` / `sim.phy.receive_samples` | Figs 18–19/Table 20 pp37–39: variable data-on prefix, speed decode with ignored X fields, S100/S200/S400 lane widths, MSB-first bytes, null packets, invalid speed discard, incomplete-byte error | Cable resynchronization latency, packet CRC, buffering, backpressure, active self-ID synthesis; no malformed-prefix checking | Compare real packet bytes and prefix duration against simultaneous PHY-LINK capture |
+| `sim.registers.PhyRegisters` / `sim.phy.RegisterPhy` | TI Tables 1–8 pp21–27: base/page masks, W1C, straps, two-reset gap rule, port selection, vendor identity, software hard reset; LREQ RTL→register→status tests | Register-only subset: no debounce, cable event generation, LinkOn, timed reset, unsolicited self-ID status; revision bytes require explicit fixture; read snapshots at request completion are unverified model policy | Read/write/reset traces on identified silicon revision |
 | Rust `fw-phy-model` | Research DS, line resolution and two-node initialization; see SOFT-PHY.md | Chip PHY-LINK timing or full cable arbitration | Compare cable-level traces after electrical qualification |
 | AFE SPICE research | Behavioral cases described in hardware/soft-phy-afe/spice/RESULTS.md | Transistor/PVT compliance, digital sampler coupling | Scope skew/thresholds, calibrated models, sampling apertures |
 
@@ -49,7 +50,7 @@ only clears pending requests; it does not emulate reset timing or self-ID.
 
 | Area | Reference / evidence to extract | Missing behavior and acceptance test |
 |---|---|---|
-| Status/registers | TI Fig 17, Table 19 pp36–37; register Tables 1–9 | Status primitives present; integrate with LREQ and real register map; every register reset/mask/page/side effect still absent |
+| Status/registers | TI Fig 17, Table 19 pp36–37; register Tables 1–9 | Status primitives present; integrate with LREQ and real register map; register masks/pages/reset subset implemented; cable-driven events, debounce and unsolicited self-ID status absent |
 | Receive/transmit | TI Figs 18–21, Table 20 | RX formatting primitive present; integrate packet FIFO/CRC; TX grant/turnaround, hold, concatenation and underrun absent; pin-by-pin independent reference traces still needed |
 | Power and isolation-free mode | TI p2, Figs 13/22/23, Table 21, LPS/LCtrl sections | ISO high, SYSCLK enable/phase/start/stop, LinkOn, reset sequencing; startup trace comparison |
 | Multi-node cable bus | IEEE 1394/1394a arbitration clauses [exact clauses verify] | 24.576-MHz tick scheduler, independent PHY clocks, ack/subaction/arbitration-reset gaps and gap_count, fairness intervals, cycle-start priority and iso/async phase boundaries; no invented constants |
@@ -77,3 +78,10 @@ byte termination. Error and end are independent strobes; an invalid speed report
 an error immediately, and the later end still closes that receive operation.
 Consumers must retain error state for the packet. There is no backpressure: a
 future packet FIFO must explicitly report overflow rather than dropping bytes.
+
+Register tests use independent literal identity/default/status vectors and RTL LREQ
+serialization. Unknown product revision bytes fail explicitly; no arbitrary chip
+identity is substituted. Port line-state fixtures assume disconnected Z lines;
+no cable debounce or fault detector is claimed. IBR/ISBR are stored requests only:
+actual reset scheduling and durations remain absent. Software reset flushes the
+composed decoder/status engine; bus reset preserves pending register snapshots.
