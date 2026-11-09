@@ -30,6 +30,14 @@ class PhyRegisters:
         self.vendor = 2
         self.resets_since_gap_write = 0
         self.physical_id_valid = False
+        self.interrupt_sequence = 0
+
+    def interrupt(self, mask):
+        """Inject detected TI Table2 interrupt causes; no detector is implied."""
+        if mask == 0 or mask & ~0x3c:
+            raise ValueError('invalid interrupt mask')
+        self.base[5] |= mask
+        self.interrupt_sequence += 1
 
     @staticmethod
     def _address(address):
@@ -73,10 +81,12 @@ class PhyRegisters:
                     old = self.ports[port][0]
                     self.ports[port][0] = (old & 0xfe) | (value & 1)
                     if (old ^ value) & 1 and self.ports[port][1] & 0x10:
-                        self.base[5] |= 4
+                        self.interrupt(4)
                 elif address == 9:
                     old = self.ports[port][1]
                     self.ports[port][1] = (old & 0xe0) | (value & 0x10) | (old & ~value & 8)
+                    if (old ^ self.ports[port][1]) & 8 and self.ports[port][1] & 0x10:
+                        self.interrupt(4)
             elif page == 7:
                 if address == 8:
                     if value & 3 == 3:
@@ -96,7 +106,7 @@ class PhyRegisters:
 
     def set_cps(self, present):
         if self.cps and not present:
-            self.base[5] |= 0x10
+            self.interrupt(0x10)
         self.cps = bool(present)
         self.base[0] = (self.base[0] & 0xfe) | int(self.cps)
 

@@ -54,14 +54,14 @@ only clears pending requests; it does not emulate reset timing or self-ID.
 
 | Area | Reference / evidence to extract | Missing behavior and acceptance test |
 |---|---|---|
-| Status/registers | TI Fig 17, Table 19 pp36–37; register Tables 1–9 | Status primitives present; integrate with LREQ and real register map; register masks/pages/reset subset implemented; cable-driven events, debounce and unsolicited self-ID status absent |
+| Status/registers | TI Fig 17, Table 19 pp36–37; register Tables 1–9 | Status primitives present; LREQ/register masks/pages/reset/interrupt subset implemented; cable-driven events, debounce and unsolicited self-ID status absent |
 | Receive/transmit | TI Figs 18–21, Table 20 | RX formatting primitive present; integrate packet FIFO/CRC; TX grant/turnaround and underrun adapter present; integrated scheduling and RTL hold/concatenation absent; pin-by-pin independent reference traces still needed |
-| Power and isolation-free mode | TI p2, Figs 13/22/23, Table 21, LPS/LCtrl sections | ISO high, SYSCLK enable/phase/start/stop, LinkOn, reset sequencing; startup trace comparison |
+| Power and isolation-free mode | TI p2, Figs 13/22/23, Table 21, LPS/LCtrl sections | Level LPS and software reset/LinkOn composition present; pulsed LPS and actual clock phase/edges still absent; startup trace comparison |
 | Multi-node cable bus | IEEE 1394/1394a arbitration clauses [exact clauses verify] | 24.576-MHz tick scheduler, independent PHY clocks, ack/subaction/arbitration-reset gaps and gap_count, fairness intervals, cycle-start priority and iso/async phase boundaries; no invented constants |
 | Reset/topology | IEEE self-ID clauses; TI PHY register behavior | Reset→tree-ID→self-ID timing, complements, root/node derivation, automatic physical-ID status, reset during active requests |
 | BeBoB device | [family sources](devices/bebob.md) pinned Linux/FFADO anchors | ROM/CSR/AVC/FCP/CMP registers, bounded stream start, packet layouts and real SYT; identify model/revision and obtain trace before claiming realism |
 | DICE device | [family sources](devices/dice.md) pinned Linux/FFADO anchors | Distinct register protocol/ownership/notification, clock locks and streaming; no generic BeBoB emulation |
-| CDC and clock recovery | Domain plan in gateware README; measured oscillators | Independent drift/jitter in SCLK, ULPI, device audio; FIFO assertions, reset epochs, synchronizer structure checks; digital sims cannot prove analog metastability immunity |
+| CDC and clock recovery | Domain plan in gateware README; measured oscillators | SCLK/USB library FIFO research harness present; device-audio domain, bridge FIFO/reset epochs and synchronizer structure checks absent; digital sims cannot prove analog metastability immunity |
 | Full-system co-simulation | TI + family sources + USB/LUNA specification | RTL PHY-LINK/link/transaction/iso/USB against models, Rust host simulated USB transport: reset→self-ID→ROM→CMP→audio→bit-exact WAV; currently absent |
 | Soft-PHY sampling | AFE research PR15 | Feed analog threshold/delay waveforms to independent-clock sampler; distinguish analog inaccuracies from sampling/CDC failures |
 
@@ -73,7 +73,7 @@ clock/cycle metadata and known omissions. See [capture inventory](../captures/RE
 ## Reproduction
 
 Run commands in gateware/README.md. CI additionally synthesizes LREQ independently;
-status and RX are synthesized too; only the safe heartbeat is routed to real pins. No model failure may be waived
+status, RX and TX are synthesized too; only the safe heartbeat is routed to real pins. No model failure may be waived
 by substituting an encoder/decoder round trip for an independently sourced vector.
 
 Receive test adds all 256 byte values at each of three speeds, a literal S100
@@ -116,3 +116,7 @@ The test transfers 1024 ordered words with independent jittered 49.152/60 MHz
 clocks and opposite drift signs, forces full/backpressure, and verifies old words
 are flushed by a testbench-coordinated reset. This validates the simulation
 harness/library use, not an implemented bridge reset/epoch protocol.
+
+Register interrupt fixtures now propagate detected CPS/port/injected timeout
+events to status flag 3 without inferring cable detectors. W1C cause clearing
+does not generate an interrupt; inactive interface events are discarded.

@@ -120,3 +120,17 @@ class RegisterTest(unittest.TestCase):
 
         sim.add_testbench(bench)
         sim.run()
+
+    def test_detected_interrupt_event_to_status_and_w1c(self):
+        p = RegisterPhy(cps=True)
+        p.registers.write(5, 0x10)  # clear reset-default CPSI
+        p.registers.set_cps(False)
+        self.assertEqual(p.tick(), (1, 0))
+        self.assertEqual(p.tick(), (1, 1))  # Table19 interrupt flag
+        self.assertEqual(p.registers.read(5), 0x10)
+        p.registers.write(5, 0x10)
+        self.assertEqual(p.tick(), (0, 0))
+        self.assertEqual(p.tick(), (0, 0))  # clearing cause does not invent event
+        p.registers.interrupt(0x20)
+        self.assertEqual(p.tick(), (1, 0))
+        self.assertEqual(p.tick(), (1, 1))

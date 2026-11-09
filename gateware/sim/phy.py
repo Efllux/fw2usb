@@ -178,6 +178,13 @@ class RegisterPhy:
         self.registers = PhyRegisters(**straps)
         self.requests = LreqDecoder()
         self.status = StatusSource()
+        self._interrupt_sequence = self.registers.interrupt_sequence
+
+    def sync_interrupts(self, *, deliver=True):
+        sequence = self.registers.interrupt_sequence
+        if deliver and sequence != self._interrupt_sequence:
+            self.status.flags |= 1
+        self._interrupt_sequence = sequence
 
     def bus_reset(self):
         self.registers.bus_reset()
@@ -196,6 +203,8 @@ class RegisterPhy:
                 if epoch != self.registers.reset_epoch:
                     self.requests = LreqDecoder()
                     self.status = StatusSource()
+                    self._interrupt_sequence = self.registers.interrupt_sequence
+        self.sync_interrupts()
         return self.status.tick(receiving=receiving)
 
 
@@ -218,6 +227,8 @@ class PoweredRegisterPhy:
             self.phy.requests = LreqDecoder()
             self.phy.status = StatusSource()
             self._epoch = self.power.reset_epoch
+        if not self.power.operational:
+            self.phy.sync_interrupts(deliver=False)
         self.linkon_pin()
 
     def bus_reset(self):
@@ -229,6 +240,7 @@ class PoweredRegisterPhy:
     def sample_sclk(self, lreq=0, *, receiving=False):
         forced = self.power.sample_sclk()
         if forced is not None:
+            self.phy.sync_interrupts(deliver=False)
             return forced
         epoch = self.phy.registers.reset_epoch
         pins = self.phy.tick(lreq, receiving=receiving)
