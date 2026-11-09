@@ -9,6 +9,7 @@ from amaranth import Elaboratable, Module, Mux, Signal
 
 class TransmitAdapter(Elaboratable):
     def __init__(self):
+        self.busy = Signal()
         self.grant = Signal()  # sampled PHY CTL=11, caller qualifies ownership
         self.speed = Signal(2)
         self.allow_hold = Signal()  # permit up to 47 initial wait cycles
@@ -54,7 +55,8 @@ class TransmitAdapter(Elaboratable):
                      final_lane.eq(Mux(speed == 0, index == 3,
                                        Mux(speed == 1, index == 1, 1)))]
         m.d.sync += [self.done.eq(0), self.underrun.eq(0), self.config_error.eq(0)]
-        with m.FSM():
+        with m.FSM() as fsm:
+            m.d.comb += self.busy.eq(~fsm.ongoing('WAIT'))
             with m.State('WAIT'):
                 with m.If(self.grant):
                     m.d.sync += [speed.eq(self.speed), index.eq(0), started.eq(0),

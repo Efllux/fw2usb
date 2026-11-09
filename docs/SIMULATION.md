@@ -155,3 +155,16 @@ reset, unlike bus/hardware reset. Clauses4.3.5/4.3.6 expose gap equations, and
 5A provides normative PHY-LINK behavior for further cross-check. Direct PDF
 download and screenshot returned403 here; RESET_DETECT units remain unresolved
 because extracted text still reports ms. No corrected constant was guessed.
+
+## F integration boundary (owner scope update)
+
+`fw2usb.phy_link.PhyLink` composes LREQ, status, RX and TX with explicit shared-bus
+output enable, one outstanding bus request/read, legacy RX request cancellation,
+bus-reset TX abort and interface disable. A composed test serializes a request,
+accepts grant, checks TX against the independent PHY observer, receives bytes and
+reads register status. It synthesizes/checks independently in CI.
+F is sufficient to begin G; it is **not full-chip conformance**. Residual gaps:
+board startup sequencer/pulsed LPS and actual IO timing, accelerated NPA scheduling
+in RTL, exact cable latency/phase, full grant arbiter and packet FIFO overflow.
+Unsupported bus speed codes are rejected by the composed request-ready contract.
+Existing primitives still permit invalid-code research fixtures independently.

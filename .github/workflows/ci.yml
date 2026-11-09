@@ -36,6 +36,7 @@ jobs:
       - run: python gateware/build.py --core status
       - run: python gateware/build.py --core receive
       - run: python gateware/build.py --core transmit
+      - run: python gateware/build.py --core phy_link
       - run: python gateware/build.py --route
       - uses: actions/upload-artifact@v4
         with:
