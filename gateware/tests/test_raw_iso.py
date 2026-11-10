@@ -48,3 +48,32 @@ class RawIsoTest(unittest.TestCase):
                 self.assertEqual(result[56:],payload)
                 await ctx.tick().repeat(4)
         sim.add_testbench(bench);sim.run()
+
+    def test_admission_after_crc_and_busy_loss_filter(self):
+        d=RawIsoBridge(opaque=True,cdc=False);sim=Simulator(d);sim.add_clock(1/49_152_000)
+        async def bench(ctx):
+            ctx.set(d.iso.channel,3);ctx.set(d.bulk_ready,0)
+            payload=b'abcd';header=((len(payload)<<16)|(3<<8)|0xa0).to_bytes(4,'big')
+            wire=header+crc(header).to_bytes(4,'big')+payload+crc(payload).to_bytes(4,'big')
+            async def pins(data):
+                ctx.set(d.iso.rx.start,1);await ctx.tick();ctx.set(d.iso.rx.start,0)
+                for b in data:ctx.set(d.iso.rx.valid,1);ctx.set(d.iso.rx.byte,b);await ctx.tick()
+                ctx.set(d.iso.rx.valid,0);ctx.set(d.iso.rx.end,1);await ctx.tick();ctx.set(d.iso.rx.end,0)
+                await ctx.tick().repeat(6)
+            ctx.set(d.iso.admit,0);await pins(wire)
+            self.assertEqual(ctx.get(d.iso.losses),1);self.assertFalse(ctx.get(d.bulk_valid));self.assertFalse(ctx.get(d.iso.busy))
+            ctx.set(d.iso.admit,1);await pins(wire)
+            self.assertTrue(ctx.get(d.iso.busy));self.assertTrue(ctx.get(d.bulk_valid))
+            await pins(bytes([0x22])) # ACK while replay is backpressured: no ISO loss.
+            self.assertEqual(ctx.get(d.iso.losses),1)
+            unrelated=bytearray(wire);unrelated[2]=4;await pins(unrelated)
+            self.assertEqual(ctx.get(d.iso.losses),1)
+            await pins(wire);self.assertEqual(ctx.get(d.iso.losses),2)
+            ctx.set(d.bulk_ready,1);result=bytearray()
+            for _ in range(150):
+                last=False
+                if ctx.get(d.bulk_valid):result.append(ctx.get(d.bulk_byte));last=ctx.get(d.bulk_last)
+                await ctx.tick()
+                if last:break
+            self.assertEqual(result[:4],b'FW2R');self.assertEqual(result[56:],payload)
+        sim.add_testbench(bench);sim.run()

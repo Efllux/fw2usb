@@ -75,7 +75,8 @@ def run(output,cycles):
             device.clock_settled()
             client.submit(node,DICE+0x150,tcode=0,data=(1).to_bytes(4,'big'));bus.run();channel=4
         create=bytes([0,channel,2,0])+struct.pack('<II',4096,64)
-        exchange(0x200,create,struct.pack('<I',1))
+        exchange(0x200,create,struct.pack('<IIII',1,4096,1,1))
+        exchange(0x204,struct.pack('<III',1,32,8192),b'')
         exchange(0x202,struct.pack('<I',1),b'')
         wire_replies=[frame.data for _,kind,frame in bus.received[0] if kind=='packet' and len(frame.data)>1]
         class Harness(Elaboratable):
@@ -154,6 +155,12 @@ def run(output,cycles):
         if len(rtl_pcm)*3!=len(expected_pcm):raise AssertionError('RTL PCM count mismatch')
         actual_pcm=b''.join(sample.to_bytes(3,'little') for sample in rtl_pcm)
         if actual_pcm!=expected_pcm:raise AssertionError('RTL PCM differs from source')
+        returned_packets=returned_bytes=0
+        for record in records:
+            returned_packets+=1;returned_bytes+=len(record)
+            if returned_packets>=8 or returned_bytes>=4096:
+                exchange(0x204,struct.pack('<III',1,returned_packets,returned_bytes),b'')
+                returned_packets=returned_bytes=0
         transcript.extend(b''.join(records));fixture=output/f'{family}.fw2r';fixture.write_bytes(transcript)
         prefix=[str(cli),'--replay',str(fixture),'--generation',str(generation)]
         for command in (['list'],['bus-info'],['self-id']):subprocess.run(prefix+command,cwd=ROOT,check=True,capture_output=True)

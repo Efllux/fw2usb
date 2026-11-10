@@ -21,6 +21,10 @@ struct Iso {
     callback: Receive,
     lease: Option<u32>,
     sequence: Option<u32>,
+    credits: bool,
+    returned_packets: u32,
+    returned_bytes: u32,
+
     dropped: u32,
 }
 pub struct Handle {
@@ -350,6 +354,10 @@ unsafe extern "C" fn raw1394_iso_recv_init(
         callback: cb,
         lease: None,
         sequence: None,
+        credits: false,
+        returned_packets: 0,
+        returned_bytes: 0,
+
         dropped: 0,
     });
     0
@@ -378,9 +386,27 @@ unsafe extern "C" fn raw1394_iso_recv_start(
     p.extend(i.packets.to_le_bytes());
     match h.session().and_then(|s| s.call(0x200, p).map_err(|_| ())) {
         Ok(r) if r.len() >= 4 => {
-            h.iso.as_mut().unwrap().lease = Some(u32::from_le_bytes(r[..4].try_into().unwrap()));
+            let lease = u32::from_le_bytes(r[..4].try_into().unwrap());
+            let credits =
+                r.len() >= 16 && u32::from_le_bytes(r[12..16].try_into().unwrap()) & 1 != 0;
+            h.iso.as_mut().unwrap().lease = Some(lease);
+            h.iso.as_mut().unwrap().credits = credits;
+            if credits
+                && h.session()
+                    .and_then(|s| s.iso_credit(lease, 32, 8192).map_err(|_| ()))
+                    .is_err()
+            {
+                let _ = h
+                    .session()
+                    .and_then(|s| s.call(0x202, lease.to_le_bytes().to_vec()).map_err(|_| ()));
+                h.iso.as_mut().unwrap().lease = None;
+                return errno(libc::EIO);
+            }
+
             h.iso.as_mut().unwrap().sequence = None;
             h.iso.as_mut().unwrap().dropped = 0;
+            h.iso.as_mut().unwrap().returned_packets = 0;
+            h.iso.as_mut().unwrap().returned_bytes = 0;
             0
         }
         _ => errno(libc::EIO),
@@ -462,11 +488,32 @@ unsafe extern "C" fn raw1394_loop_iterate(handle: *mut Handle) -> c_int {
                 i.sequence = Some(seq);
                 i.dropped = i.dropped.saturating_add(delta - 1);
             }
+            if i.credits {
+                let lease = i.lease.unwrap();
+                let cost = p.len() as u32 + 24;
+                if h.session()
+                    .and_then(|s| s.iso_credit(lease, 1, cost).map_err(|_| ()))
+                    .is_err()
+                {
+                    return errno(libc::EIO);
+                }
+            }
             return errno(libc::EOVERFLOW);
         }
     }
     i.sequence = Some(seq);
     let cb = i.callback.unwrap();
+    i.returned_packets += 1;
+    i.returned_bytes += p.len() as u32 + 24;
+    let replenish = if i.credits && (i.returned_packets >= 8 || i.returned_bytes >= 4096) {
+        let v = Some((i.lease.unwrap(), i.returned_packets, i.returned_bytes));
+        i.returned_packets = 0;
+        i.returned_bytes = 0;
+        v
+    } else {
+        None
+    };
+
     let dropped = std::mem::take(&mut i.dropped);
     let (channel, tag, sy, cycle) = (p[28], p[29], p[30], (q(12) >> 12) & 0x1fff);
     let result = cb(
@@ -479,11 +526,20 @@ unsafe extern "C" fn raw1394_loop_iterate(handle: *mut Handle) -> c_int {
         cycle,
         dropped,
     );
-    if result == 2 {
+    if result == 2 || !(0..=4).contains(&result) {
         return errno(libc::EIO);
     }
     if matches!(result, 3 | 4) {
         raw1394_iso_stop(handle);
+    } else if let Some((lease, packets, bytes)) = replenish {
+        if get(handle)
+            .ok()
+            .and_then(|h| h.session().ok())
+            .and_then(|s| s.iso_credit(lease, packets, bytes).ok())
+            .is_none()
+        {
+            return errno(libc::EIO);
+        }
     }
     0
 }
@@ -593,7 +649,15 @@ mod tests {
                     payload[4..8].copy_from_slice(&(bytes.len() as u32).to_le_bytes());
                     payload.extend(bytes);
                 }
-                0x200 => payload.extend(7u32.to_le_bytes()),
+                0x200 => {
+                    for n in [7u32, 512, 1, 1] {
+                        payload.extend(n.to_le_bytes());
+                    }
+                }
+                0x204 => {
+                    assert_eq!(r.payload.len(), 12);
+                    assert_eq!(&r.payload[..4], &7u32.to_le_bytes());
+                }
                 0x202 => assert_eq!(r.payload, 7u32.to_le_bytes()),
                 _ => return Err("unexpected command".into()),
             }

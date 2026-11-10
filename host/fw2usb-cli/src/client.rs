@@ -65,6 +65,14 @@ impl Session {
         }
         Ok(response[16..].to_vec())
     }
+    pub fn iso_credit(&mut self, handle: u32, packets: u32, bytes: u32) -> Result<()> {
+        let mut p = Vec::new();
+        p.extend(handle.to_le_bytes());
+        p.extend(packets.to_le_bytes());
+        p.extend(bytes.to_le_bytes());
+        self.call(0x204, p)?;
+        Ok(())
+    }
     pub fn read(&mut self, node: u16, address: u64, length: u32) -> Result<Vec<u8>> {
         if length == 0 || length > 1_048_576 {
             return Err("read size outside host bound".into());
