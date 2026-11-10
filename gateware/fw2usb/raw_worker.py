@@ -8,6 +8,7 @@ from amaranth import Array, Cat, Const, Elaboratable, Module, Mux, ResetInserter
 from fw2usb.async_request import AsyncRequestEncoder
 from fw2usb.link_layer import LinkLayer
 from fw2usb.responder import TransactionResponder
+from fw2usb.recovery import PhyRecovery
 from fw2usb.tunnel import FrameDecoder, FrameEncoder
 
 
@@ -17,7 +18,7 @@ class RawWorker(Elaboratable):
         self.quarantine_ticks=quarantine_ticks;self.quarantined_labels=Signal(64)
         self.iso_capacity=iso_capacity
         self.command=FrameDecoder(capacity=512)
-        self.link=LinkLayer();self.responder=TransactionResponder()
+        self.link=LinkLayer();self.responder=TransactionResponder();self.recovery=PhyRecovery()
         self.epoch_reset=Signal()
         self.session_reset=Signal()
         self.cycle_master_enable=Signal()
@@ -43,11 +44,16 @@ class RawWorker(Elaboratable):
         with m.If(grant | self.iso_consume):
             m.d.sync += [self.iso_packet_credits.eq(self.iso_packet_credits+Mux(grant,grant_packets,0)-self.iso_consume),
                          self.iso_byte_credits.eq(self.iso_byte_credits+Mux(grant,grant_bytes,0)-Mux(self.iso_consume,self.iso_cost,0))]
-        abort_request=Signal()
+        abort_request=Signal();user_request=Signal();session_recover=Signal()
+        m.submodules.recovery=recovery=self.recovery
         m.d.comb += self.command.reset.eq(self.session_reset)
         status=self.link.phy.status
         reset=Signal()
         m.d.comb += reset.eq(self.epoch_reset | (status.flags_valid & status.flags_mask[1] & status.flags[1]))
+        m.d.comb += [recovery.start.eq(abort_request | session_recover),
+                     recovery.bus_reset.eq(reset),recovery.register_valid.eq(status.register_valid),recovery.register_address.eq(status.address),recovery.register_data.eq(status.data),
+                     recovery.ready.eq(self.link.request.ready & recovery.active),
+                     self.link.request.address.eq(recovery.address),self.link.request.data.eq(recovery.data)]
         request=AsyncRequestEncoder();m.submodules.request=ResetInserter(reset | self.session_reset | abort_request)(request)
         sid_words=Array(Signal(32,name=f'selfid_word{i}') for i in range(63))
         selfid_phase=Signal(init=1);root=Signal(6);local_root=Signal();topology_error=Signal();tree_closed=Signal();tree_depth=Signal(7)
@@ -83,7 +89,7 @@ class RawWorker(Elaboratable):
         address=Cat(*parameters[4:10]);upper_address=Cat(parameters[10],parameters[11])
         extended=Cat(parameters[12],parameters[13]);length=Cat(*parameters[16:20]);timeout_us=Cat(*parameters[20:24])
         quadlet=Cat(parameters[27],parameters[26],parameters[25],parameters[24])
-        user_request=Signal();service_owned=Signal();service_posted=Signal();service_started=Signal();wire_started=Signal();service_speed=Signal(2);capacity_at_start=Signal(init=1)
+        service_owned=Signal();service_posted=Signal();service_started=Signal();wire_started=Signal();service_speed=Signal(2);capacity_at_start=Signal(init=1)
         service_request=Signal();choose_service=Signal()
         m.d.comb += [service.rx.start.eq(self.link.phy.rx.start & ~self.link.selfid_phase),
                      service.rx.valid.eq(self.link.phy.rx.valid & ~self.link.selfid_phase),service.rx.byte.eq(self.link.phy.rx.byte),
@@ -92,7 +98,7 @@ class RawWorker(Elaboratable):
                      service.csr.cycle_time.eq(self.link.cycle.timer.value),
                      self.link.capacity.eq(Mux((self.link.packet.tcode==2)|(self.link.packet.tcode==6)|(self.link.packet.tcode==7)|(self.link.packet.tcode==11),1,capacity_at_start)),
                      service_request.eq(service.tx_valid & ~service_posted),choose_service.eq(service_request),
-                     self.link.request.valid.eq(service_request | user_request),
+                     self.link.request.valid.eq(Mux(recovery.active,recovery.valid,service_request | user_request)),
                      self.link.request.speed.eq(Mux(choose_service,service_speed<<1,speed<<1)),
                      self.link.tx_valid.eq(Mux(service_owned,service.tx_valid,request.valid)),
                      self.link.tx_byte.eq(Mux(service_owned,service.tx_byte,request.byte)),self.link.tx_last.eq(Mux(service_owned,service.tx_last,request.last)),
@@ -100,7 +106,7 @@ class RawWorker(Elaboratable):
         with m.If(self.link.phy.rx.start):
             m.d.sync += capacity_at_start.eq(~service.busy)
             with m.If(~service.busy):m.d.sync += service_speed.eq(self.link.phy.rx.speed)
-        with m.If(self.link.request.valid & self.link.request.ready):
+        with m.If(self.link.request.valid & self.link.request.ready & (self.link.request.kind<4)):
             m.d.sync += service_owned.eq(choose_service)
             with m.If(choose_service):m.d.sync += service_posted.eq(1)
         with m.If(self.link.user_grant):
@@ -127,7 +133,7 @@ class RawWorker(Elaboratable):
         result_length=Signal(16);result_quadlet=Signal();ack=Signal(8);rcode=Signal(8);completion_ticks=Signal(64)
         mode=Signal(3);response_opcode=Signal(16);response_status=Signal(32);response_id=Signal(32)
         response_length=Signal(16);response_index=Signal(16);event=Signal()
-        bus_info=Cat(self.local_node,root,Const(0x3ff,10),self.node_count,Const(0,9),self.ready,local_root,topology_error,Const(0,13))
+        bus_info=Cat(self.local_node,root,Const(0x3ff,10),self.node_count,Const(0,9),(self.ready & ~recovery.active & ~recovery.failed),local_root,topology_error,recovery.active,recovery.failed,Const(0,11))
         complete=Cat(ack,rcode,Const(0,16),result_length,Const(0,16),completion_ticks)
         caps=Const(int.from_bytes(bytes.fromhex('00000000000001000f00000000000000'),'little'),128)
         pair=sid_words[response_index>>3]
@@ -147,12 +153,12 @@ class RawWorker(Elaboratable):
                      encoder.status.eq(response_status),encoder.generation.eq(self.generation),encoder.length.eq(response_length),
                      encoder.valid.eq(1),encoder.byte.eq(payload_byte),encoder.out_ready.eq(self.out_ready),
                      self.out_valid.eq(encoder.out_valid),self.out_byte.eq(encoder.out_byte),self.out_last.eq(encoder.out_last),
-                     self.link.request.kind.eq(3),
+                     self.link.request.kind.eq(Mux(recovery.active,recovery.kind,3)),
                      request.ready.eq(self.link.tx_ready & ~service_owned),request.destination.eq(destination),request.source.eq(self.local_node),
                      request.label.eq(active_label),request.tcode.eq(tcode),request.address.eq(address),request.length.eq(length[:16]),
                      request.extended.eq(extended),request.quadlet.eq(quadlet),request.data_byte.eq(self.command.read_data)]
         m.d.comb += self.command.read_index.eq(24+request.data_index)
-        with m.If(self.link.request.valid & self.link.request.ready & ~choose_service):m.d.sync += posted.eq(1)
+        with m.If(self.link.request.valid & self.link.request.ready & (self.link.request.kind<4) & ~choose_service):m.d.sync += posted.eq(1)
         with m.If(posted & ~wire_started & self.link.request.ready):m.d.sync += posted.eq(0)
         with m.If(self.link.phy.rx.start):m.d.sync += rx_count.eq(0)
         with m.If(self.link.phy.rx.valid):
@@ -179,7 +185,8 @@ class RawWorker(Elaboratable):
                             with m.Case(3):m.d.sync += [mode.eq(0),response_length.eq(8)];m.next='REPLY'
                             with m.Case(4):m.d.sync += [mode.eq(1),response_length.eq(self.node_count<<3)];m.next='REPLY'
                             with m.Case(0x100):
-                                with m.If(~self.ready | raw_retire):m.d.sync += response_status.eq(3);m.next='REPLY'
+                                with m.If(recovery.failed):m.d.sync += response_status.eq(6);m.next='REPLY'
+                                with m.Elif(recovery.active | ~self.ready | raw_retire):m.d.sync += response_status.eq(3);m.next='REPLY'
                                 with m.Elif(self.command.length<24):m.d.sync += response_status.eq(1);m.next='REPLY'
                                 with m.Else():m.d.sync += [parse_index.eq(0),scan.eq(0)];m.next='PARSE'
                             with m.Case(0x200):
@@ -296,6 +303,7 @@ class RawWorker(Elaboratable):
                 with m.If(encoder.out_valid & self.out_ready & encoder.out_last):
                     m.d.comb += self.command.command_ready.eq(~event);m.next='IDLE'
         session_abort=self.session_reset & (fsm.ongoing('SEND')|fsm.ongoing('WAIT'))
+        m.d.comb += session_recover.eq(session_abort & posted & ~service_owned & (self.link.phy.pending | self.link.phy.tx.busy))
         with m.If(session_abort & posted & (self.link.phy.pending | self.link.phy.tx.busy)):m.d.sync += raw_retire.eq(1)
         with m.If(retire_label | session_abort):
             m.d.sync += [quarantined.bit_select(active_label,1).eq(1),expiry[active_label].eq(ticks[:32]+self.quarantine_ticks)]
