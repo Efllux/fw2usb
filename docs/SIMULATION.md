@@ -277,3 +277,66 @@ lock correlation is claimed. IEC61883-1/6 wire facts cross-checked against the
 PCR payload defaults are development fixtures; per-device overhead/admission
 values still require profile validation. DBS=0/256-slot generic streams are outside
 these bounded audio profiles.
+
+## J USB / host and end-to-end byte-stream co-simulation
+
+Pinned LUNA0.2.3 ULPI HS core supplies standard enumeration, vendor GET_CAPS and
+512-byte bulk endpoints. Descriptor/control-handler tests and ECP5 synthesis pass.
+Explicit exported USB clock/reset prevent synthesis from pruning an undriven
+clock domain; only a real nonempty USB core is counted. Board clock/reset polarity,
+HS electrical/token interoperability and physical throughput remain unverified.
+The standalone core advertises capability0 until bridge command-worker integration.
+
+Rust nusb host discovers raw endpoints and implements list/bus-info/self-ID,
+quadlet reads/writes, root ROM dump with CRC/bounds checking, and ISO-to-PCM24 WAV.
+Bounded transcript replay is a no-hardware backend, not a vendor capture. USB
+framing is transfer-boundary independent; labels/cookies/generations are checked.
+A separate bounded event queue prevents control calls from silently consuming
+active ISO records. Recording destroys its handle on success and failure.
+
+`sim/cosim.py` executes model reset/self-ID, real wire ROM/CMP/DICE ownership
+transactions, drifting/jittered device audio, RTL PHY RX/CRC, retained RAM,
+AM824 decode, SCLK→USB async FIFO and RTL FW2R framing, then the actual Rust CLI
+produces bit-exact WAVs for both families. SCLK/USB have independent frequency
+errors and deterministic edge jitter. The64-cycle local run passed392 BeBoB and
+384 DICE frames; malformed sequence/generation transcripts fail without publishing
+new WAVs. Control operations use behavioral transaction peers and recorded USB
+request/response transcripts; the USB boundary is bulk bytes, not LUNA token/
+electrical simulation. Full live command-worker, credit/reset-epoch integration,
+realistic vendor AV/C capabilities and real captures remain explicit gaps.
+
+### Native command worker checkpoint
+
+RawUsbBridge now attaches a single-outstanding PHY/link worker to LUNA bulk CDC.
+Real PHY-pin tests cover self-ID/local-ID discovery, quadlet and block operations,
+CAS, timeout, ISO lease creation/destruction and generation/session resets. Async
+payloads are bounded to256 bytes; opaque RX ISO payloads to4096 bytes. Whole-frame
+arbitration preserves headers under backpressure. Lease/generation/time metadata
+snapshot at packet start, including empty/non-CIP streams. USB session reset
+flushes endpoint FSM/PID/queues, CDC queues and audio framer together; native bus
+reset retains USB framing and reports a new generation. Native bridge advertises
+capability7; standalone transport remains capability0.69 gateware tests, integrated
+ECP5 synthesis/check, Rust1.99 checks and8-cycle WAV co-sim pass locally.
+
+Remaining J work: explicit host credit records/admission, incoming async/FCP leases,
+raw ISO TX/deadlines, label quarantine after timeout and token-level USB co-sim.
+These are software/verification gaps, not hardware-only blockers. The native worker
+pin test and transcript WAV test exercise different integration boundaries; no
+claim that the WAV test currently enumerates LUNA or executes the native worker.
+
+### Independent review R23-1 recovery policy
+
+A timed-out SEND or USB-session abort with a pending/active PHY operation starts
+bounded recovery, not a local pending-bit clear. Recovery reads PHY register1,
+preserves RHB, then writes RHB|IBR|63. Only observed native reset clears recovery;
+missing PHY response fails closed after100ms of SCLK. Bus-info flags3/4 expose
+recovery active/failed; new SUBMITs return BUSY during recovery or IO after failure.
+A real reset increments generation and requires fresh self-ID before new traffic.
+Register requests bypass cycle-start arbitration priority so a stranded bus request
+cannot prevent recovery register access. Tests withhold grants, supply real LREQ
+register responses/IBR side effects, delay self-ID through reset, and verify a
+subsequent valid transaction, including late grant and USB session reset cases.
+The timeout remains an uncertain result for any write that reached the wire.
+
+Source: [TI SLLS424G register1 and reset guidance, printed pp23/30](https://www.ti.com.cn/cn/lit/gpn/TSB41AB2).
+The100ms failure deadline is bridge policy, not a normative PHY timing limit.

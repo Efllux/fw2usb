@@ -55,7 +55,7 @@ class LinkLayer(Elaboratable):
         with m.If(self.phy.tx.done & ack_owned):
             m.d.sync += ack_valid.eq(0)
         choose_cycle = Signal()
-        m.d.comb += [choose_cycle.eq(self.cycle.request & ~choose_ack),
+        m.d.comb += [choose_cycle.eq(self.cycle.request & ~choose_ack & ~(self.request.valid & (self.request.kind>=4))),
                      self.phy.request.valid.eq(Mux(choose_ack | choose_cycle,1,self.request.valid)),
                      self.phy.request.kind.eq(Mux(choose_ack,0,Mux(choose_cycle,2,self.request.kind))),
                      self.phy.request.speed.eq(Mux(choose_ack,self.phy.rx.speed << 1,Mux(choose_cycle,0,self.request.speed))),

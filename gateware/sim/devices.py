@@ -76,7 +76,7 @@ class BeBoB(Remote):
             return None
         if self.audio_clock is None:
             from sim.audio import AudioClock
-            self.audio_clock = AudioClock(channels=self.channels,ppm=ppm,jitter_ticks=jitter_ticks)
+            self.audio_clock = AudioClock(channels=self.channels,sid=getattr(self,'physical_id',1),ppm=ppm,jitter_ticks=jitter_ticks)
         return self.audio_clock.next_cycle(cycle)
 
     @property
@@ -169,7 +169,7 @@ class Dice(Remote):
         if self.audio_clock is None:
             from sim.audio import AudioClock
             self.audio_clock = AudioClock(rate=44100 if self.clock==0x010c else 48000,
-                                          channels=self.channels,ppm=ppm,jitter_ticks=jitter_ticks)
+                                          channels=self.channels,sid=getattr(self,'physical_id',1),ppm=ppm,jitter_ticks=jitter_ticks)
         return self.audio_clock.next_cycle(cycle)
 
     def clock_settled(self):

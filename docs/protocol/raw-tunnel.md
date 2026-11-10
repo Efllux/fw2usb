@@ -50,3 +50,38 @@ credits or FFADO period sizes. USB2 cannot carry every S400/S800 workload.
 Admission sums both directions, endpoint overhead and measured sustainable bulk
 throughput; reject excess instead of dropping secretly. Bus resets, removal,
 app death, out-of-order completion and exhausted credits are mandatory tests.
+
+## Executable v0 refinements
+
+Host framing and RTL encoder/decoder now implement the24-byte FW2R header. The
+bounded hardware decoder halts on invalid magic/version/kind/cookie/length and
+requires an interface/session reset. USB short packets never delimit records.
+Opcode0003 returns bus-info (`local u16, root u16, nodes u16, flags u16`, LE);
+0004 returns raw big-endian self-ID/inverse pairs. ISO_CREATE's initial bounded
+fixture request is direction/channel/speed/reserved bytes, max packet u32 and
+ring packets u32; its response starts with handle u32. ISO_DESTROY payload is
+handle u32. ISO_DATA flag bit0 means valid header, bit1 valid data CRC; a host must
+reject missing validity flags, sequence gaps and mismatched generations.
+
+Live transport streams and synthetic transcript replay share the Rust parser.
+The standalone LUNA transport currently advertises capability0 until the full
+bridge worker is attached. No physical USB transfer or device support claim follows
+from byte-stream co-simulation. Credit negotiation and fully attached live command
+handling remain tracked implementation work.
+
+Native bridge checkpoint: single outstanding async request, maximum256-byte data;
+quadlet/block reads/writes and compare-swap supported. ISO_CREATE RX only returns
+`handle u32, max_payload u32, ring_packets u32` with at most4096-byte payload/ring1.
+Handles advance on each lease. ISO_DESTROY requires the current live handle.
+Generation0 is discovery-only for bus-info; other operations require the current
+generation. Session reset discards framing state and leases; native reset reports
+RESET without splitting a USB record. Explicit CREDIT, raw TX and incoming async
+leases are still unimplemented and must not be inferred from capability7.
+
+Timeout recovery: a stranded PHY operation triggers register1 read and IBR long
+reset with preserved RHB/gap63. Recovery waits for actual PHY reset status and
+self-ID, then exposes the new generation. Bus-info flag bit3=recovery active,
+bit4=failed. A100ms SCLK policy deadline fails closed if PHY status never arrives.
+SUBMIT returns BUSY while recovering and IO after failure; no uncertain write is
+replayed. An external native reset clears failed recovery. This does not detect
+loss of SCLK itself; independent board clock monitoring remains required.

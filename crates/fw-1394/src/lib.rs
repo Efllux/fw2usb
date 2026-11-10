@@ -154,3 +154,52 @@ mod tests {
 }
 
 pub mod topology;
+
+/// IEEE1212 configuration-ROM CRC16, initial0, MSB-first polynomial1021.
+pub fn rom_crc16(bytes: &[u8]) -> u16 {
+    let mut state = 0u16;
+    for &byte in bytes {
+        state ^= (byte as u16) << 8;
+        for _ in 0..8 {
+            state = (state << 1) ^ if state & 0x8000 != 0 { 0x1021 } else { 0 };
+        }
+    }
+    state
+}
+/// Validate bus-info and root directory bounds/CRCs. Nested leaves are separate.
+pub fn validate_root_rom(bytes: &[u8]) -> Result<(), Error> {
+    if bytes.len() < 8 || !bytes.len().is_multiple_of(4) {
+        return Err(Error::Length);
+    }
+    let info = bytes[0] as usize;
+    let crc_len = bytes[1] as usize;
+    let root = (info + 1) * 4;
+    if crc_len > info || root + 4 > bytes.len() {
+        return Err(Error::Length);
+    }
+    if rom_crc16(&bytes[4..4 + crc_len * 4]) != u16::from_be_bytes([bytes[2], bytes[3]]) {
+        return Err(Error::HeaderCrc);
+    }
+    let entries = u16::from_be_bytes([bytes[root], bytes[root + 1]]) as usize;
+    if root + 4 + entries * 4 > bytes.len() {
+        return Err(Error::Length);
+    }
+    if rom_crc16(&bytes[root + 4..root + 4 + entries * 4])
+        != u16::from_be_bytes([bytes[root + 2], bytes[root + 3]])
+    {
+        return Err(Error::DataCrc);
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod rom_tests {
+    #[test]
+    fn crc16_reference_and_bounds() {
+        assert_eq!(super::rom_crc16(b"123456789"), 0x31c3);
+        assert_eq!(
+            super::validate_root_rom(&[255; 8]),
+            Err(super::Error::Length)
+        );
+    }
+}

@@ -1,0 +1,9 @@
+[package]
+name = "fw2usb-cli"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+[dependencies]
+fw-amdtp = { path = "../../crates/fw-amdtp" }
+nusb = "=0.2.9"
+fw-1394 = { path = "../../crates/fw-1394" }

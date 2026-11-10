@@ -76,7 +76,7 @@ class PhyLink(Elaboratable):
                 with m.Elif(self.request.kind == 4):
                     m.d.sync += [self.read_pending.eq(1), read_address.eq(self.request.address)]
             with m.If(grant | self.bus_reset |
-                      ((phy_ctl == 2) & ((kind == 2) | (kind == 3)))):
+                      (self.pending & (phy_ctl == 2) & ((kind == 2) | (kind == 3)))):
                 m.d.sync += self.pending.eq(0)
             with m.If(self.status.register_valid & (self.status.address == read_address)):
                 m.d.sync += self.read_pending.eq(0)
