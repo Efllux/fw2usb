@@ -2,3 +2,5 @@ target/
 .venv/
 __pycache__/
 gateware/build/
+
+*.kicad_prl
