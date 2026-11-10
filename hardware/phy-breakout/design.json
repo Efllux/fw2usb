@@ -1,0 +1,2376 @@
+[
+  {
+    "ref": "U1",
+    "value": "TSB41BA3FTPFPEP",
+    "foot": "HTQFP80",
+    "pins": [
+      [
+        "1",
+        "PINT",
+        null,
+        "output"
+      ],
+      [
+        "2",
+        "S5_LKON",
+        "S5_LKON",
+        "bidirectional"
+      ],
+      [
+        "3",
+        "LREQ",
+        "LREQ",
+        "input"
+      ],
+      [
+        "4",
+        "DGND",
+        "GND",
+        "power_in"
+      ],
+      [
+        "5",
+        "PCLK",
+        "PCLK",
+        "output"
+      ],
+      [
+        "6",
+        "DVDD33",
+        "3V3",
+        "power_in"
+      ],
+      [
+        "7",
+        "LCLK_PMC",
+        "GND",
+        "input"
+      ],
+      [
+        "8",
+        "DVDD_CORE",
+        "DVDD_CORE",
+        "power_out"
+      ],
+      [
+        "9",
+        "CTL0",
+        "CTL0",
+        "bidirectional"
+      ],
+      [
+        "10",
+        "CTL1",
+        "CTL1",
+        "bidirectional"
+      ],
+      [
+        "11",
+        "D0",
+        "D0",
+        "bidirectional"
+      ],
+      [
+        "12",
+        "D1",
+        "D1",
+        "bidirectional"
+      ],
+      [
+        "13",
+        "D2",
+        "D2",
+        "bidirectional"
+      ],
+      [
+        "14",
+        "DGND",
+        "GND",
+        "power_in"
+      ],
+      [
+        "15",
+        "D3",
+        "D3",
+        "bidirectional"
+      ],
+      [
+        "16",
+        "D4",
+        "D4",
+        "bidirectional"
+      ],
+      [
+        "17",
+        "D5",
+        "D5",
+        "bidirectional"
+      ],
+      [
+        "18",
+        "DVDD33",
+        "3V3",
+        "power_in"
+      ],
+      [
+        "19",
+        "D6",
+        "D6",
+        "bidirectional"
+      ],
+      [
+        "20",
+        "D7",
+        "D7",
+        "bidirectional"
+      ],
+      [
+        "21",
+        "AGND",
+        "GND",
+        "power_in"
+      ],
+      [
+        "22",
+        "R1",
+        "R1",
+        "bidirectional"
+      ],
+      [
+        "23",
+        "R0",
+        "R0",
+        "bidirectional"
+      ],
+      [
+        "24",
+        "AVDD",
+        "3V3",
+        "power_in"
+      ],
+      [
+        "25",
+        "PLLGND",
+        "GND",
+        "power_in"
+      ],
+      [
+        "26",
+        "XO",
+        "XO",
+        "output"
+      ],
+      [
+        "27",
+        "XI",
+        "XI",
+        "input"
+      ],
+      [
+        "28",
+        "PLLGND",
+        "GND",
+        "power_in"
+      ],
+      [
+        "29",
+        "PLLVDD_CORE",
+        "PLLVDD_CORE",
+        "power_out"
+      ],
+      [
+        "30",
+        "PLLVDD_CORE",
+        "PLLVDD_CORE",
+        "power_in"
+      ],
+      [
+        "31",
+        "PLLVDD33",
+        "3V3",
+        "power_in"
+      ],
+      [
+        "32",
+        "S4",
+        "S4",
+        "input"
+      ],
+      [
+        "33",
+        "S3",
+        "S3",
+        "input"
+      ],
+      [
+        "34",
+        "CPS",
+        "CPS",
+        "input"
+      ],
+      [
+        "35",
+        "SE",
+        "GND",
+        "input"
+      ],
+      [
+        "36",
+        "SM",
+        "GND",
+        "input"
+      ],
+      [
+        "37",
+        "DVDD_CORE",
+        "DVDD_CORE",
+        "power_in"
+      ],
+      [
+        "38",
+        "DGND",
+        "GND",
+        "power_in"
+      ],
+      [
+        "39",
+        "AVDD",
+        "3V3",
+        "power_in"
+      ],
+      [
+        "40",
+        "AGND",
+        "GND",
+        "power_in"
+      ],
+      [
+        "41",
+        "TPB0-",
+        null,
+        "passive"
+      ],
+      [
+        "42",
+        "TPB0+",
+        null,
+        "passive"
+      ],
+      [
+        "43",
+        "AGND",
+        "GND",
+        "power_in"
+      ],
+      [
+        "44",
+        "AVDD",
+        "3V3",
+        "power_in"
+      ],
+      [
+        "45",
+        "TPA0-",
+        null,
+        "passive"
+      ],
+      [
+        "46",
+        "TPA0+",
+        null,
+        "passive"
+      ],
+      [
+        "47",
+        "TPBIAS0",
+        null,
+        "passive"
+      ],
+      [
+        "48",
+        "TPB1-",
+        "GND",
+        "passive"
+      ],
+      [
+        "49",
+        "TPB1+",
+        "GND",
+        "passive"
+      ],
+      [
+        "50",
+        "AGND",
+        "GND",
+        "power_in"
+      ],
+      [
+        "51",
+        "AVDD",
+        "3V3",
+        "power_in"
+      ],
+      [
+        "52",
+        "TPA1-",
+        null,
+        "passive"
+      ],
+      [
+        "53",
+        "TPA1+",
+        null,
+        "passive"
+      ],
+      [
+        "54",
+        "TPBIAS1",
+        null,
+        "passive"
+      ],
+      [
+        "55",
+        "TPB2-",
+        "TPB2-",
+        "passive"
+      ],
+      [
+        "56",
+        "TPB2+",
+        "TPB2+",
+        "passive"
+      ],
+      [
+        "57",
+        "AVDD",
+        "3V3",
+        "power_in"
+      ],
+      [
+        "58",
+        "TPA2-",
+        "TPA2-",
+        "passive"
+      ],
+      [
+        "59",
+        "TPA2+",
+        "TPA2+",
+        "passive"
+      ],
+      [
+        "60",
+        "TPBIAS2",
+        "TPBIAS2",
+        "passive"
+      ],
+      [
+        "61",
+        "AGND",
+        "GND",
+        "power_in"
+      ],
+      [
+        "62",
+        "AGND",
+        "GND",
+        "power_in"
+      ],
+      [
+        "63",
+        "AVDD",
+        "3V3",
+        "power_in"
+      ],
+      [
+        "64",
+        "DGND",
+        "GND",
+        "power_in"
+      ],
+      [
+        "65",
+        "DVDD_CORE",
+        "DVDD_CORE",
+        "power_in"
+      ],
+      [
+        "66",
+        "S2_PC0",
+        "S2_PC0",
+        "input"
+      ],
+      [
+        "67",
+        "S1_PC1",
+        "S1_PC1",
+        "input"
+      ],
+      [
+        "68",
+        "S0_PC2",
+        "S0_PC2",
+        "input"
+      ],
+      [
+        "69",
+        "DVDD33",
+        "3V3",
+        "power_in"
+      ],
+      [
+        "70",
+        "DVDD33",
+        "3V3",
+        "power_in"
+      ],
+      [
+        "71",
+        "DVDD_CORE",
+        "DVDD_CORE",
+        "power_in"
+      ],
+      [
+        "72",
+        "DGND",
+        "GND",
+        "power_in"
+      ],
+      [
+        "73",
+        "VREG_PD",
+        "GND",
+        "input"
+      ],
+      [
+        "74",
+        "BMODE",
+        "GND",
+        "input"
+      ],
+      [
+        "75",
+        "RESET_N",
+        "RESET_N",
+        "input"
+      ],
+      [
+        "76",
+        "DGND",
+        "GND",
+        "power_in"
+      ],
+      [
+        "77",
+        "PD",
+        "GND",
+        "input"
+      ],
+      [
+        "78",
+        "TESTM",
+        "TESTM",
+        "input"
+      ],
+      [
+        "79",
+        "ENHANCE_EN",
+        "ENHANCE_EN",
+        "input"
+      ],
+      [
+        "80",
+        "LPS",
+        "LPS",
+        "input"
+      ],
+      [
+        "81",
+        "EP",
+        "GND",
+        "power_in"
+      ]
+    ],
+    "xy": [
+      50,
+      50
+    ],
+    "mpn": "TSB41BA3FTPFPEP",
+    "verify": "[verify] legacy register/timing cross-check; EP6x6; electrical bring-up"
+  },
+  {
+    "ref": "J2",
+    "value": "ECP5_PHY_2x10",
+    "foot": "Header20",
+    "pins": [
+      [
+        "1",
+        "GND",
+        "GND",
+        "passive"
+      ],
+      [
+        "2",
+        "SCLK_H",
+        "SCLK_H",
+        "bidirectional"
+      ],
+      [
+        "3",
+        "D0",
+        "D0",
+        "bidirectional"
+      ],
+      [
+        "4",
+        "D1",
+        "D1",
+        "bidirectional"
+      ],
+      [
+        "5",
+        "D2",
+        "D2",
+        "bidirectional"
+      ],
+      [
+        "6",
+        "D3",
+        "D3",
+        "bidirectional"
+      ],
+      [
+        "7",
+        "D4",
+        "D4",
+        "bidirectional"
+      ],
+      [
+        "8",
+        "D5",
+        "D5",
+        "bidirectional"
+      ],
+      [
+        "9",
+        "D6",
+        "D6",
+        "bidirectional"
+      ],
+      [
+        "10",
+        "D7",
+        "D7",
+        "bidirectional"
+      ],
+      [
+        "11",
+        "CTL0",
+        "CTL0",
+        "bidirectional"
+      ],
+      [
+        "12",
+        "CTL1",
+        "CTL1",
+        "bidirectional"
+      ],
+      [
+        "13",
+        "LREQ",
+        "LREQ",
+        "bidirectional"
+      ],
+      [
+        "14",
+        "LPS_H",
+        "LPS_H",
+        "bidirectional"
+      ],
+      [
+        "15",
+        "LKON_H",
+        "LKON_H",
+        "bidirectional"
+      ],
+      [
+        "16",
+        "RESET_N",
+        "RESET_N",
+        "bidirectional"
+      ],
+      [
+        "17",
+        "GND",
+        "GND",
+        "passive"
+      ],
+      [
+        "18",
+        "3V3",
+        "3V3",
+        "passive"
+      ],
+      [
+        "19",
+        "GND",
+        "GND",
+        "passive"
+      ],
+      [
+        "20",
+        "NC",
+        null,
+        "passive"
+      ]
+    ],
+    "xy": [
+      78.0,
+      37.0
+    ],
+    "mpn": "Samtec TSW-110-07-G-D",
+    "verify": "[verify] header orientation; ULX3S net map in README; no ULX supply tie"
+  },
+  {
+    "ref": "J3",
+    "value": "BENCH_3V3",
+    "foot": "Header2",
+    "pins": [
+      [
+        "1",
+        "3V3",
+        "3V3",
+        "power_out"
+      ],
+      [
+        "2",
+        "GND",
+        "GND",
+        "power_out"
+      ]
+    ],
+    "xy": [
+      80,
+      67.0
+    ],
+    "mpn": "Samtec TSW-102-07-G-S",
+    "verify": "[verify] external regulated3.3V current budget"
+  },
+  {
+    "ref": "J1",
+    "value": "FW400_6PIN",
+    "foot": "FW6",
+    "pins": [
+      [
+        "1",
+        "VP",
+        null,
+        "passive"
+      ],
+      [
+        "2",
+        "VG",
+        "GND",
+        "passive"
+      ],
+      [
+        "3",
+        "TPB-",
+        "TPB2-",
+        "passive"
+      ],
+      [
+        "4",
+        "TPB+",
+        "TPB2+",
+        "passive"
+      ],
+      [
+        "5",
+        "TPA-",
+        "TPA2-",
+        "passive"
+      ],
+      [
+        "6",
+        "TPA+",
+        "TPA2+",
+        "passive"
+      ],
+      [
+        "SH",
+        "SHELL",
+        "SHIELD",
+        "passive"
+      ]
+    ],
+    "xy": [
+      50,
+      79
+    ],
+    "mpn": "Molex 53460-0639",
+    "verify": "[verify] vendor drawing/receptacle view and retention holes; VP deliberately NC"
+  },
+  {
+    "ref": "R1",
+    "value": "1k",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "S5_LKON",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "3V3",
+        "passive"
+      ]
+    ],
+    "xy": [
+      60,
+      37
+    ],
+    "mpn": "Yageo RC0402FR-071KL",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R2",
+    "value": "1k",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "S4",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "3V3",
+        "passive"
+      ]
+    ],
+    "xy": [
+      44,
+      64
+    ],
+    "mpn": "Yageo RC0402FR-071KL",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R3",
+    "value": "1k",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "S3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      41.5,
+      64.0
+    ],
+    "mpn": "Yageo RC0402FR-071KL",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R4",
+    "value": "1k",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "S2_PC0",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      60,
+      45
+    ],
+    "mpn": "Yageo RC0402FR-071KL",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R5",
+    "value": "1k",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "S1_PC1",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      60,
+      43
+    ],
+    "mpn": "Yageo RC0402FR-071KL",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R6",
+    "value": "1k",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "S0_PC2",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      60,
+      41
+    ],
+    "mpn": "Yageo RC0402FR-071KL",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R7",
+    "value": "1k",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "TESTM",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "3V3",
+        "passive"
+      ]
+    ],
+    "xy": [
+      57.5,
+      36.0
+    ],
+    "mpn": "Yageo RC0402FR-071KL",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R8",
+    "value": "1k",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "ENHANCE_EN",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "3V3",
+        "passive"
+      ]
+    ],
+    "xy": [
+      55,
+      36
+    ],
+    "mpn": "Yageo RC0402FR-071KL",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R9",
+    "value": "1k",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "CPS",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      39,
+      64
+    ],
+    "mpn": "Yageo RC0402FR-071KL",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R10",
+    "value": "1k",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "LPS",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "LPS_H",
+        "passive"
+      ]
+    ],
+    "xy": [
+      52.5,
+      36.0
+    ],
+    "mpn": "Yageo RC0402FR-071KL",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R11",
+    "value": "1k",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "S5_LKON",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "LKON_H",
+        "passive"
+      ]
+    ],
+    "xy": [
+      62.5,
+      37.0
+    ],
+    "mpn": "Yageo RC0402FR-071KL",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R12",
+    "value": "22",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "PCLK",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "SCLK_H",
+        "passive"
+      ]
+    ],
+    "xy": [
+      40,
+      44
+    ],
+    "mpn": "Yageo RC0402FR-0722RL",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R13",
+    "value": "6.34k 1%",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "R0",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "R1",
+        "passive"
+      ]
+    ],
+    "xy": [
+      40,
+      60
+    ],
+    "mpn": "Yageo RC0402FR-076K34L",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R14",
+    "value": "56.2 1%",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "TPA2-",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "TPBIAS2",
+        "passive"
+      ]
+    ],
+    "xy": [
+      59,
+      61
+    ],
+    "mpn": "Yageo RC0402FR-0756R2L",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R15",
+    "value": "56.2 1%",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "TPA2+",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "TPBIAS2",
+        "passive"
+      ]
+    ],
+    "xy": [
+      59,
+      59
+    ],
+    "mpn": "Yageo RC0402FR-0756R2L",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R16",
+    "value": "56.2 1%",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "TPB2-",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "TPB_CM",
+        "passive"
+      ]
+    ],
+    "xy": [
+      62,
+      61
+    ],
+    "mpn": "Yageo RC0402FR-0756R2L",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R17",
+    "value": "56.2 1%",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "TPB2+",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "TPB_CM",
+        "passive"
+      ]
+    ],
+    "xy": [
+      62,
+      59
+    ],
+    "mpn": "Yageo RC0402FR-0756R2L",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R18",
+    "value": "4.99k 1%",
+    "foot": "R",
+    "pins": [
+      [
+        "1",
+        "1",
+        "TPB_CM",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      64.5,
+      62.0
+    ],
+    "mpn": "Yageo RC0402FR-074K99L",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C1",
+    "value": "270p C0G",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "TPB_CM",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      64,
+      64
+    ],
+    "mpn": "Murata GRM1555C1H271JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C2",
+    "value": "1u",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "TPBIAS2",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      58,
+      64
+    ],
+    "mpn": "Murata GRM155R61A105KE15D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "R19",
+    "value": "1M",
+    "foot": "R0603",
+    "pins": [
+      [
+        "1",
+        "1",
+        "SHIELD",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      54,
+      73
+    ],
+    "mpn": "Yageo RC0603FR-071ML",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C3",
+    "value": "10n 50V",
+    "foot": "C0603",
+    "pins": [
+      [
+        "1",
+        "1",
+        "SHIELD",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      58,
+      75
+    ],
+    "mpn": "Murata GRM188R71H103KA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C4",
+    "value": "1n 50V",
+    "foot": "C0603",
+    "pins": [
+      [
+        "1",
+        "1",
+        "SHIELD",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      58,
+      77
+    ],
+    "mpn": "Murata GRM1885C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C5",
+    "value": "220n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "RESET_N",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      52.0,
+      37.5
+    ],
+    "mpn": "Murata GRM155R71C224KA12D",
+    "verify": "[verify] ramp/clock startup and minimum2ms reset; FPGA open-drain hold"
+  },
+  {
+    "ref": "Y1",
+    "value": "49.152MHz fundamental CL6p",
+    "foot": "Crystal4",
+    "pins": [
+      [
+        "1",
+        "XI",
+        "XI",
+        "passive"
+      ],
+      [
+        "2",
+        "GND",
+        "GND",
+        "passive"
+      ],
+      [
+        "3",
+        "XO",
+        "XO",
+        "passive"
+      ],
+      [
+        "4",
+        "GND",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      39,
+      57
+    ],
+    "mpn": "Abracon ABM8W-49.1520MHZ-6-K1Z-T3",
+    "verify": "[verify] fundamental mode/ESR/drive/CL and assembled PCLK ppm"
+  },
+  {
+    "ref": "C6",
+    "value": "6.8p C0G",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "XI",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      37.0,
+      54.5
+    ],
+    "mpn": "Murata GRM1555C1H6R8CA01D",
+    "verify": "[verify] tune for PCB+PHY parasitics, measure PCLK within100ppm"
+  },
+  {
+    "ref": "C7",
+    "value": "6.8p C0G",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "XO",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      37.0,
+      59.5
+    ],
+    "mpn": "Murata GRM1555C1H6R8CA01D",
+    "verify": "[verify] tune for PCB+PHY parasitics"
+  },
+  {
+    "ref": "C8",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      39,
+      46
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C9",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      36.5,
+      46.0
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C10",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      39.5,
+      54.0
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C11",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      37,
+      53
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C12",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      44.0,
+      62.5
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C13",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      44.0,
+      65.5
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C14",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      49,
+      63
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C15",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      49,
+      65
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C16",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      55,
+      63
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C17",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      55,
+      65
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C18",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      63,
+      55
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C19",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      65.5,
+      55.0
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C20",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      63,
+      49
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C21",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      65.5,
+      49.0
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C22",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      63,
+      44
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C23",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      65.5,
+      44.0
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C24",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      55.0,
+      37.5
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C25",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      55.0,
+      34.5
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C26",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      49,
+      37
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C27",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      49,
+      35
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C28",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      46.5,
+      35.0
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C29",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      47,
+      33
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C30",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "DVDD_CORE",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      37,
+      48
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C31",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "DVDD_CORE",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      34.5,
+      48.0
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C32",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "DVDD_CORE",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      52.5,
+      65.0
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C33",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "DVDD_CORE",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      53,
+      67
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C34",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "DVDD_CORE",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      52.5,
+      34.5
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C35",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "DVDD_CORE",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      53,
+      33
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C36",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "DVDD_CORE",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      45,
+      37
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C37",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "DVDD_CORE",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      44,
+      35
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C38",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "PLLVDD_CORE",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      46.5,
+      65.0
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C39",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "PLLVDD_CORE",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      47,
+      67
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C40",
+    "value": "100n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "PLLVDD_CORE",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      46.5,
+      63.0
+    ],
+    "mpn": "Murata GRM155R71C104KA88D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C41",
+    "value": "1n",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "PLLVDD_CORE",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      43,
+      67
+    ],
+    "mpn": "Murata GRM1555C1H102JA01D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C42",
+    "value": "1u",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "DVDD_CORE",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      61.0,
+      39.5
+    ],
+    "mpn": "Murata GRM155R61A105KE15D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C43",
+    "value": "1u",
+    "foot": "C",
+    "pins": [
+      [
+        "1",
+        "1",
+        "PLLVDD_CORE",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      43,
+      61
+    ],
+    "mpn": "Murata GRM155R61A105KE15D",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C44",
+    "value": "10u 10V",
+    "foot": "C0805",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      40,
+      48
+    ],
+    "mpn": "Murata GRM21BR61A106KE19L",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C45",
+    "value": "10u 10V",
+    "foot": "C0805",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      62,
+      47
+    ],
+    "mpn": "Murata GRM21BR61A106KE19L",
+    "verify": "[verify] assembly/stock"
+  },
+  {
+    "ref": "C46",
+    "value": "10u 10V",
+    "foot": "C0805",
+    "pins": [
+      [
+        "1",
+        "1",
+        "3V3",
+        "passive"
+      ],
+      [
+        "2",
+        "2",
+        "GND",
+        "passive"
+      ]
+    ],
+    "xy": [
+      46,
+      39
+    ],
+    "mpn": "Murata GRM21BR61A106KE19L",
+    "verify": "[verify] assembly/stock"
+  }
+]

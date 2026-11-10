@@ -352,6 +352,16 @@ IO-rejection tests on macOS. It publishes zero devices. Its
 realtime constraints; actual audio driver/daemon implementation is outside this
 skeleton. CI checks both C ABI and macOS bundle build. No HAL installation occurred.
 
+## M reference-hardware work in progress
+
+Original KiCad8 schematic/net/BOM generator selects active TSB41BA3F-EP legacy
+link and DS-only port2, with TI-sourced bias/termination/power/reset/straps.
+ERC passes with zero warnings/errors. Placed PCB is **unrouted**, lacks the
+connector footprint and has186 unconnected items, although geometric violations
+are zero. This is NOT M completion or fabrication-ready. See
+[hardware status and source-access gap](../hardware/phy-breakout/README.md).
+BA3F/AB2 behavioral equivalence is not established by a compatible link pinout.
+
 ### Independent review R23-1 recovery policy
 
 A timed-out SEND or USB-session abort with a pending/active PHY operation starts

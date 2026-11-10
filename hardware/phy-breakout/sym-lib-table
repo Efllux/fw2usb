@@ -1,0 +1,1 @@
+(sym_lib_table (version 7) (lib (name "fw2usb") (type "KiCad") (uri "${KIPRJMOD}/fw2usb.kicad_sym") (options "") (descr "Original TI fact based symbols")))
