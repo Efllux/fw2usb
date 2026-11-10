@@ -21,6 +21,7 @@ class LinkLayer(Elaboratable):
         self.request = SimpleNamespace(valid=Signal(),ready=Signal(),kind=Signal(3),speed=Signal(3),
                                        address=Signal(4),data=Signal(8),accel=Signal())
         self.user_grant = Signal()
+        self.user_hold = Signal(init=1)
         self.tx_valid = Signal()
         self.tx_ready = Signal()
         self.tx_byte = Signal(8)
@@ -70,7 +71,7 @@ class LinkLayer(Elaboratable):
                      self.phy.tx.last.eq(Mux(ack_owned,1,Mux(cycle_owned,self.cycle.last,self.tx_last))),
                      self.tx_ready.eq(self.phy.tx.ready & ~cycle_owned & ~ack_owned),
                      self.user_grant.eq(self.phy.tx.grant & ~cycle_owned & ~ack_owned),
-                     self.phy.tx.allow_hold.eq(~ack_owned),
+                     self.phy.tx.allow_hold.eq(~ack_owned & (cycle_owned | self.user_hold)),
                      self.packet.start.eq(self.phy.rx.start & ~self.selfid_phase),
                      self.packet.valid.eq(self.phy.rx.valid & ~self.selfid_phase),
                      self.packet.byte.eq(self.phy.rx.byte),

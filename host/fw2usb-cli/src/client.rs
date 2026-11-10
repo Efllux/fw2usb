@@ -98,6 +98,63 @@ impl Session {
         }
         Ok(r[16..].to_vec())
     }
+    /// Native packed CYCLE_TIME and correlated 24.576 MHz monotonic ticks.
+    pub fn clock_snapshot(&mut self) -> Result<(u32, u64)> {
+        let r = self.call(5, Vec::new())?;
+        if r.len() != 12 {
+            return Err("malformed clock snapshot".into());
+        }
+        Ok((
+            u32::from_le_bytes(r[..4].try_into()?),
+            u64::from_le_bytes(r[4..].try_into()?),
+        ))
+    }
+    pub fn iso_tx_create(&mut self, channel: u8, speed: u8, maximum: u32) -> Result<u32> {
+        if channel > 63 || speed > 2 || maximum == 0 || maximum > 256 {
+            return Err("invalid ISO TX lease".into());
+        }
+        let mut p = vec![1, channel, speed, 0];
+        p.extend(maximum.to_le_bytes());
+        p.extend(1u32.to_le_bytes());
+        let r = self.call(0x200, p)?;
+        if r.len() != 16 || u32::from_le_bytes(r[4..8].try_into()?) != maximum || r[12..] != [0; 4]
+        {
+            return Err("unsupported ISO TX allocation".into());
+        }
+        Ok(u32::from_le_bytes(r[..4].try_into()?))
+    }
+    /// Submit once. A transport error must never cause an automatic replay.
+    pub fn iso_send(
+        &mut self,
+        handle: u32,
+        channel: u8,
+        tag: u8,
+        sy: u8,
+        target: u32,
+        data: &[u8],
+    ) -> Result<()> {
+        if channel > 63
+            || tag > 3
+            || sy > 15
+            || data.len() > 256
+            || target & 4095 != 0
+            || (target >> 12) & 8191 >= 8000
+        {
+            return Err("invalid ISO TX packet".into());
+        }
+        let mut p = Vec::new();
+        for n in [handle, self.generation, 0, target] {
+            p.extend(n.to_le_bytes());
+        }
+        p.extend(0u64.to_le_bytes());
+        p.extend((data.len() as u32).to_le_bytes());
+        p.extend([channel, tag, sy, 0]);
+        p.extend(data);
+        if !self.call(0x201, p)?.is_empty() {
+            return Err("malformed ISO TX completion".into());
+        }
+        Ok(())
+    }
     pub fn iso_credit(&mut self, handle: u32, packets: u32, bytes: u32) -> Result<()> {
         let mut p = Vec::new();
         p.extend(handle.to_le_bytes());
@@ -128,5 +185,48 @@ impl Session {
             data.extend(bytes);
         }
         Ok(data)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{cell::RefCell, rc::Rc};
+    struct FailOnce(Rc<RefCell<Vec<Frame>>>);
+    impl Transport for FailOnce {
+        fn exchange(&mut self, request: Frame) -> Result<Frame> {
+            self.0.borrow_mut().push(request);
+            Err("uncertain wire completion".into())
+        }
+        fn next(&mut self) -> Result<Option<Frame>> {
+            Ok(None)
+        }
+    }
+    #[test]
+    fn iso_tx_failure_is_single_submission_and_invalid_packet_never_posts() {
+        let sent = Rc::new(RefCell::new(Vec::new()));
+        let mut s = Session::new(Box::new(FailOnce(sent.clone())), 9);
+        assert!(s.iso_send(4, 7, 1, 0, 12 << 12, b"abc").is_err());
+        assert_eq!(sent.borrow().len(), 1);
+        let frames = sent.borrow();
+        let f = &frames[0];
+        assert_eq!((f.opcode, f.generation), (0x201, 9));
+        assert_eq!(&f.payload[0..8], &[4, 0, 0, 0, 9, 0, 0, 0]);
+        assert_eq!(
+            &f.payload[24..],
+            &[3, 0, 0, 0, 7, 1, 0, 0, b'a', b'b', b'c']
+        );
+        drop(frames);
+        for (channel, tag, sy, target, data) in [
+            (64, 1, 0, 0, vec![]),
+            (7, 4, 0, 0, vec![]),
+            (7, 1, 16, 0, vec![]),
+            (7, 1, 0, 1, vec![]),
+            (7, 1, 0, 8000 << 12, vec![]),
+            (7, 1, 0, 0, vec![0; 257]),
+        ] {
+            assert!(s.iso_send(4, channel, tag, sy, target, &data).is_err());
+        }
+        assert_eq!(sent.borrow().len(), 1);
     }
 }

@@ -52,7 +52,7 @@ only clears pending requests; it does not emulate reset timing or self-ID.
 
 | G link/bus/device fixtures | CRC/packet/ACK/root cycle-start/self-ID/topology; Rust golden vectors and event-level tree bus; synthetic BeBoB/DICE control/audio | Full cable arbitration waveforms, spec-captured CRC vectors, complete vendor AV/C capabilities | Physical reset/self-ID/ACK/packet captures |
 | H/I transactions and audio | Bounded RTL CSR/IRM/CAS/responder/ROM reader, ISO RAM CRC commit, AM824 RX/TX and Rust golden SYT | Nested ROM traversal, full autonomous controller and duplex scheduling | Remote devices, full channel profiles |
-| J native raw bridge | LUNA HS transport, native PHY command worker, generation/lease resets, whole-frame CDC and packet/byte credit admission; Rust nusb/replay/WAV | Raw ISO TX/deadlines, incoming FCP/ARM leases and USB token co-sim | Enumeration/throughput/tail latency, IO closure |
+| J native raw bridge | LUNA HS transport, native PHY command worker, generation/lease resets, whole-frame CDC, packet/byte RX credit admission and cycle-scheduled raw TX with grant-time deadline rejection; Rust nusb/replay/WAV | Incoming FCP/ARM leases, non-root cycle synchronization and USB token co-sim | Enumeration/throughput/tail latency, IO closure |
 | K clock/UAC2 components | Rust drift/jitter/SYT frequency/filter/feedback/NCO, LUNA UAC2 controls/alts/atomic capture, runtime-bound stereo profile candidates | Native sample/control integration, qualified MCLK/PLL and production profile discovery | Audio clock jitter, USB OS interoperability |
 | L host skeletons | raw1394 core ABI/IRM/receive/reset callback tests and FFADO surface audit; buildable no-device CoreAudio vtable | Drop-in FFADO surface/reactor, CoreAudio daemon/rings/audio IO | Native driver lifecycle and real streams |
 | M board WIP | Original KiCad8 net/BOM/schematic; ERC0/0, placed69parts | Connector footprint/routing/thermal/SI;186 unconnected items; not clean DRC | All physical bring-up and manufacturing review |
@@ -69,7 +69,7 @@ only clears pending requests; it does not emulate reset timing or self-ID.
 | BeBoB device | [family sources](devices/bebob.md) pinned Linux/FFADO anchors | ROM/CSR/AVC/FCP/CMP registers, bounded stream start, packet layouts and real SYT; identify model/revision and obtain trace before claiming realism |
 | DICE device | [family sources](devices/dice.md) pinned Linux/FFADO anchors | Distinct register protocol/ownership/notification, clock locks and streaming; no generic BeBoB emulation |
 | CDC and clock recovery | Domain plan in gateware README; measured oscillators | SCLK/USB library FIFO research harness present; independent device-audio/SCLK/USB clocks and bridge FIFOs/session reset present; complete CDC/reset audit and analog correlation remain; digital sims cannot prove analog metastability immunity |
-| Full-system co-simulation | TI + family sources + USB/LUNA specification | RTL PHY-LINK/link/transaction/iso/USB against models, Rust host simulated USB transport: model reset/self-ID/ROM/CMP plus RTL audio/CDC/FW2R→Rust bit-exact WAV present; native worker control tested separately, USB tokens absent |
+| Full-system co-simulation | TI + family sources + USB/LUNA specification | RTL PHY-LINK/link/transaction/iso/USB against models, Rust host simulated USB transport: model reset/self-ID/ROM/CMP plus RTL audio/CDC/FW2R→Rust bit-exact WAV present; unified native control/CSR/rawTX/audio/CDC/CLI tested; USB tokens absent |
 | Soft-PHY sampling | AFE research PR15 | Feed analog threshold/delay waveforms to independent-clock sampler; distinguish analog inaccuracies from sampling/CDC failures |
 
 Model register/packet behavior from public documentation and independently written
@@ -421,8 +421,15 @@ odd-sized and backpressured payloads, latched metadata and capacity rejection ar
 tested;33 Rust fw-1394 ISO golden packets match byte for byte. IsoTxWindow tests
 packed timer validation,128-second wrap,64-second horizon and conservative
 serialization margin (bridge policy, not a normative IEEE constant). Packet-source
-synthesis/check passes. These components are not yet connected to native TX leases,
-arbitration or grant-time deadline rejection; raw TX remains unsupported.
+synthesis/check passes. Native TX leases now connect the source to ISO arbitration and retained decoder
+RAM. Admission waits for a target cycle and rechecks at PHY grant. An expired
+pending request starts actual PHY recovery; a late grant emits null, never an old
+payload. USB abort resets source data and quarantines physical ownership until
+recovery. S100/S200/S400, stale generation/channel, missed grant and abort cases
+pass pin-level tests. The live CLI/native co-sim checks one exact ISO packet with
+no duplication before its RX/WAV sequence. Queuing is one retained packet, max256B,
+not a throughput claim. Non-root incoming cycle synchronization is still absent;
+TX scheduling currently uses the local timer and is only synchronized as root.
 
 ### Independent review R23-1 recovery policy
 
