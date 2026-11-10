@@ -52,7 +52,7 @@ only clears pending requests; it does not emulate reset timing or self-ID.
 
 | G link/bus/device fixtures | CRC/packet/ACK/root cycle-start/self-ID/topology; Rust golden vectors and event-level tree bus; synthetic BeBoB/DICE control/audio | Full cable arbitration waveforms, spec-captured CRC vectors, complete vendor AV/C capabilities | Physical reset/self-ID/ACK/packet captures |
 | H/I transactions and audio | Bounded RTL CSR/IRM/CAS/responder/ROM reader, ISO RAM CRC commit, AM824 RX/TX and Rust golden SYT | Nested ROM traversal, full autonomous controller and duplex scheduling | Remote devices, full channel profiles |
-| J native raw bridge | LUNA HS transport, native PHY command worker, generation/lease resets, whole-frame CDC, packet/byte RX credit admission and cycle-scheduled raw TX with grant-time deadline rejection; Rust nusb/replay/WAV | Incoming FCP/ARM leases, non-root cycle synchronization and USB token co-sim | Enumeration/throughput/tail latency, IO closure |
+| J native raw bridge | LUNA HS transport, native PHY command worker, generation/lease resets, whole-frame CDC, packet/byte RX credit admission and cycle-scheduled raw TX with grant-time deadline rejection; Rust nusb/replay/WAV | Incoming FCP/ARM leases, deeper TX queue admission and USB token co-sim | Enumeration/throughput/tail latency, IO closure |
 | K clock/UAC2 components | Rust drift/jitter/SYT frequency/filter/feedback/NCO, LUNA UAC2 controls/alts/atomic capture, runtime-bound stereo profile candidates | Native sample/control integration, qualified MCLK/PLL and production profile discovery | Audio clock jitter, USB OS interoperability |
 | L host skeletons | raw1394 core ABI/IRM/receive/reset callback tests and FFADO surface audit; buildable no-device CoreAudio vtable | Drop-in FFADO surface/reactor, CoreAudio daemon/rings/audio IO | Native driver lifecycle and real streams |
 | M board WIP | Original KiCad8 net/BOM/schematic; ERC0/0, placed69parts | Connector footprint/routing/thermal/SI;186 unconnected items; not clean DRC | All physical bring-up and manufacturing review |
@@ -428,8 +428,8 @@ payload. USB abort resets source data and quarantines physical ownership until
 recovery. S100/S200/S400, stale generation/channel, missed grant and abort cases
 pass pin-level tests. The live CLI/native co-sim checks one exact ISO packet with
 no duplication before its RX/WAV sequence. Queuing is one retained packet, max256B,
-not a throughput claim. Non-root incoming cycle synchronization is still absent;
-TX scheduling currently uses the local timer and is only synchronized as root.
+not a throughput claim. Non-root cycle synchronization is now connected as described below; root and
+slave readiness gate TX allocation/snapshots. Duplex throughput is unmeasured.
 
 ### Independent review R23-1 recovery policy
 
@@ -447,3 +447,22 @@ The timeout remains an uncertain result for any write that reached the wire.
 
 Source: [TI SLLS424G register1 and reset guidance, printed pp23/30](https://www.ti.com.cn/cn/lit/gpn/TSB41AB2).
 The100ms failure deadline is bridge policy, not a normative PHY timing limit.
+
+### Cycle-slave timer refinement
+
+CRC-committed cycle-start from the topology root updates the native timer. The
+implementation advances forward corrections and pauses increments to repay
+backward phase error. It compares modulo128seconds with an error horizon64seconds.
+Wire-header age is measured; external PHY/cable latency defaults to0 and needs
+board calibration. Bad CRC, wrong root, malformed timer fields and self-ID-phase
+traffic cannot update time. A two-cycle SCLK watchdog clears synchronization and
+pause debt; the timer then free-runs. Fresh synchronization gates non-root raw TX
+allocation and CLOCK_SNAPSHOT; bus-info bit5 reports clock readiness. Valid CSR
+CYCLE_TIME writes initialize hardware, whereas bus reset preserves the timer.
+Tests cover monotonicity, wrap, ±200ppm remote drift, receive jitter, loss of
+cycle-start and actual pin-to-CSR writes. No cable-delay or oscillator qualification
+follows from these bounded digital cases.
+
+Primary requirement: IEEE1394-2008 §8.3.2.3.1 (printed pp210–211),
+[IEEE-authored text](https://dokumen.pub/ieee-std-1394-2008-standard-for-a-high-performance-serial-bus-firewire-978-0-7381-5770-2-978-0-7381-5771-9.html).
+Slew policy and watchdog admission behavior are implementation decisions.

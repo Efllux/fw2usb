@@ -26,7 +26,7 @@ class RawWorker(Elaboratable):
         self.generation=Signal(32,init=1)
         self.local_node=Signal(16,init=0xffff)
         self.node_count=Signal(7)
-        self.ready=Signal()
+        self.ready=Signal();self.clock_ready=Signal()
         self.iso_enabled=Signal();self.iso_armed=Signal();self.iso_direction=Signal();self.iso_speed=Signal(2)
         self.iso_handle=Signal(32)
         self.monotonic_ticks=Signal(64)
@@ -48,6 +48,7 @@ class RawWorker(Elaboratable):
         abort_request=Signal();user_request=Signal();session_recover=Signal()
         m.submodules.recovery=recovery=self.recovery
         m.d.comb += self.command.reset.eq(self.session_reset)
+        m.d.comb += self.clock_ready.eq(self.ready & (self.link.cycle.timer.root | self.link.follower.synced))
         status=self.link.phy.status
         reset=Signal()
         m.d.comb += reset.eq(self.epoch_reset | (status.flags_valid & status.flags_mask[1] & status.flags[1]))
@@ -62,7 +63,7 @@ class RawWorker(Elaboratable):
         ticks=self.monotonic_ticks;divider=Signal();m.d.sync += divider.eq(~divider)
         with m.If(divider):m.d.sync += ticks.eq(ticks+1)
         m.d.comb += [self.link.selfid_phase.eq(selfid_phase),self.link.phy.bus_reset.eq(reset),
-                     self.link.cycle.node_id.eq(self.local_node),self.link.cycle.timer.root.eq(local_root & self.ready),
+                     self.link.cycle.node_id.eq(self.local_node),self.link.root_node.eq(Cat(root,Const(0x3ff,10))),self.link.follow_cycles.eq(self.ready & ~local_root),self.link.cycle.timer.root.eq(local_root & self.ready),
                      self.link.cycle.timer.enable.eq(self.cycle_master_enable & self.ready)]
         with m.If(self.link.selfid.accept & selfid_phase):
             packet=self.link.selfid.packet
@@ -105,6 +106,7 @@ class RawWorker(Elaboratable):
                      service.rx.end.eq(self.link.phy.rx.end & ~self.link.selfid_phase),service.rx.phy_error.eq(self.link.phy.rx.error),
                      service.node_id.eq(self.local_node),service.bus_reset.eq(reset | ~self.link.phy.enable),
                      service.csr.cycle_time.eq(self.link.cycle.timer.value),
+                     self.link.timer_load.eq(service.csr.cycle_write),self.link.timer_value.eq(service.csr.cycle_data),
                      self.link.capacity.eq(Mux((self.link.packet.tcode==2)|(self.link.packet.tcode==6)|(self.link.packet.tcode==7)|(self.link.packet.tcode==11),1,capacity_at_start)),
                      service_request.eq(service.tx_valid & ~service_posted),choose_service.eq(service_request),
                      self.link.request.valid.eq(Mux(recovery.active,recovery.valid,service_request | user_request | tx_request)),
@@ -146,7 +148,7 @@ class RawWorker(Elaboratable):
         mode=Signal(3);response_opcode=Signal(16);response_status=Signal(32);response_id=Signal(32)
         snapshot=Signal(96)
         response_length=Signal(16);response_index=Signal(16);event=Signal()
-        bus_info=Cat(self.local_node,root,Const(0x3ff,10),self.node_count,Const(0,9),(self.ready & ~recovery.active & ~recovery.failed),local_root,topology_error,recovery.active,recovery.failed,Const(0,11))
+        bus_info=Cat(self.local_node,root,Const(0x3ff,10),self.node_count,Const(0,9),(self.ready & ~recovery.active & ~recovery.failed),local_root,topology_error,recovery.active,recovery.failed,self.clock_ready,Const(0,10))
         complete=Cat(ack,rcode,Const(0,16),result_length,Const(0,16),completion_ticks)
         caps=Const(int.from_bytes(bytes.fromhex('00000000000001001f00000000000000'),'little'),128)
         pair=sid_words[response_index>>3]
@@ -198,7 +200,10 @@ class RawWorker(Elaboratable):
                             with m.Case(1):m.d.sync += [mode.eq(5),response_length.eq(16)];m.next='REPLY'
                             with m.Case(3):m.d.sync += [mode.eq(0),response_length.eq(8)];m.next='REPLY'
                             with m.Case(4):m.d.sync += [mode.eq(1),response_length.eq(self.node_count<<3)];m.next='REPLY'
-                            with m.Case(5):m.d.sync += [mode.eq(7),snapshot.eq(Cat(self.link.cycle.timer.value,ticks)),response_length.eq(12)];m.next='REPLY'
+                            with m.Case(5):
+                                with m.If(~self.clock_ready):m.d.sync += response_status.eq(3)
+                                with m.Else():m.d.sync += [mode.eq(7),snapshot.eq(Cat(self.link.cycle.timer.value,ticks)),response_length.eq(12)]
+                                m.next='REPLY'
                             with m.Case(0x100):
                                 with m.If(recovery.failed):m.d.sync += response_status.eq(6);m.next='REPLY'
                                 with m.Elif(recovery.active | ~self.ready | raw_retire):m.d.sync += response_status.eq(3);m.next='REPLY'
@@ -208,7 +213,7 @@ class RawWorker(Elaboratable):
                                 with m.If(self.command.length!=12):m.d.sync += response_status.eq(1);m.next='REPLY'
                                 with m.Else():m.d.sync += parse_index.eq(0);m.next='PARSE_ISO'
                             with m.Case(0x201):
-                                with m.If(recovery.active | recovery.failed | raw_retire | ~self.ready):m.d.sync += response_status.eq(3);m.next='REPLY'
+                                with m.If(recovery.active | recovery.failed | raw_retire | ~self.clock_ready):m.d.sync += response_status.eq(3);m.next='REPLY'
                                 with m.Elif((self.command.length<32)|(self.command.length>288)):m.d.sync += response_status.eq(1);m.next='REPLY'
                                 with m.Else():m.d.sync += parse_index.eq(0);m.next='PARSE_TX'
                             with m.Case(0x204):
@@ -300,7 +305,7 @@ class RawWorker(Elaboratable):
                 with m.Else():m.d.sync += response_status.eq(1)
                 m.next='REPLY'
             with m.State('ENABLE_ISO'):
-                with m.If(self.iso_enabled):m.d.sync += response_status.eq(3)
+                with m.If(self.iso_enabled | ((parameters[0]==1)&~self.clock_ready)):m.d.sync += response_status.eq(3)
                 with m.Elif((parameters[0]>1)|(parameters[1]>63)|(parameters[2]>2)|(parameters[3]!=0)|~self.ready|
                             (Cat(*parameters[4:8])==0)|(Cat(*parameters[4:8])>Mux(parameters[0]==1,256,self.iso_capacity))|(Cat(*parameters[8:12])==0)|(Cat(*parameters[8:12])>64)):
                     m.d.sync += response_status.eq(1)

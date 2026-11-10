@@ -8,6 +8,7 @@ from sim.phy import LreqDecoder,receive_samples
 from sim.transmit import TransmitPhy
 from sim.transactions import crc
 from test_raw_worker import frame
+from test_cycle_follower import cycle_packet
 
 class RawTxWorkerTest(unittest.TestCase):
     def test_scheduled_wire_and_abort_boundaries(self):
@@ -22,8 +23,11 @@ class RawTxWorkerTest(unittest.TestCase):
                     current.append(byte)
                     if last:outputs.append(bytes(current));current.clear()
         async def phy(c):
-            active=None
+            active=None;elapsed=0;next_cycle=6144
             while True:
+                if elapsed>=next_cycle and c.get(d.ready) and not inputs and active is None:
+                    from test_cycle_follower import packed
+                    inputs.extend(receive_samples(cycle_packet(packed(elapsed//2)),speed=0));next_cycle=elapsed+6144
                 if c.get(d.epoch_reset):decoder.bus_reset();active=None
                 ctl,data=inputs.pop(0) if inputs and active is None else (0,0)
                 decoder.sample(c.get(d.link.phy.lreq),receiving=ctl==2)
@@ -33,7 +37,7 @@ class RawTxWorkerTest(unittest.TestCase):
                     driven=active.phy_ctl;ctl=driven if driven is not None else c.get(d.link.phy.ctl_out)
                     active.tick(c.get(d.link.phy.ctl_out) if c.get(d.link.phy.oe) else None,c.get(d.link.phy.data_out))
                     if active.state=='idle':wire.extend(x.payload for x in active.completed);active=None
-                c.set(d.link.phy.ctl_in,ctl);c.set(d.link.phy.data_in,data);await c.tick()
+                c.set(d.link.phy.ctl_in,ctl);c.set(d.link.phy.data_in,data);await c.tick();elapsed+=1
         async def bench(c):
             cookie=0
             async def reset():
@@ -43,7 +47,12 @@ class RawTxWorkerTest(unittest.TestCase):
                 inputs.extend([(1,0)]*8+[(0,0)]*2)
                 for _ in range(400):
                     await c.tick()
-                    if c.get(d.ready):return
+                    if c.get(d.ready):break
+                else:self.fail('topology timeout')
+                inputs.extend(receive_samples(cycle_packet(c.get(d.link.cycle.timer.value)+100),speed=0))
+                for _ in range(400):
+                    await c.tick()
+                    if c.get(d.clock_ready):return
                 self.fail('topology timeout')
             async def send(op,payload=b'',*,wait=True):
                 nonlocal cookie

@@ -23,6 +23,7 @@ class TransactionLink(Elaboratable):
                      self.responder.node_id.eq(self.link.cycle.node_id),
                      self.responder.bus_reset.eq(self.link.phy.bus_reset | ~self.link.phy.enable),
                      self.responder.csr.cycle_time.eq(self.link.cycle.timer.value),
+                     self.link.timer_load.eq(self.responder.csr.cycle_write),self.link.timer_value.eq(self.responder.csr.cycle_data),
                      self.link.request.valid.eq(self.responder.tx_valid & ~posted),
                      self.link.request.kind.eq(3),self.link.request.speed.eq(speed << 1),
                      self.link.tx_valid.eq(self.responder.tx_valid),

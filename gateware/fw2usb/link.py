@@ -29,6 +29,8 @@ class CycleTimer(Elaboratable):
     def __init__(self):
         self.load = Signal()
         self.load_value = Signal(32)
+        self.pause = Signal()
+        self.tick = Signal()
         self.value = Signal(32)
         self.root = Signal()
         self.enable = Signal()
@@ -45,6 +47,7 @@ class CycleTimer(Elaboratable):
         m.d.comb += self.value.eq(Cat(offset, Const(0, 0), cycle, seconds))
         # offset has width12 and cycle width13: register layout 7:13:12.
         m.d.sync += divider.eq(~divider)
+        m.d.comb += self.tick.eq(divider)
         with m.If(~self.enable | ~self.root):
             m.d.sync += self.cycle_start_valid.eq(0)
         with m.Elif(self.cycle_start_valid & self.cycle_start_ready):
@@ -52,7 +55,7 @@ class CycleTimer(Elaboratable):
         with m.If(self.load):
             m.d.sync += [offset.eq(self.load_value[:12]), cycle.eq(self.load_value[12:25]),
                          seconds.eq(self.load_value[25:]), divider.eq(0)]
-        with m.Elif(divider):
+        with m.Elif(divider & ~self.pause):
             with m.If(offset == 3071):
                 m.d.sync += offset.eq(0)
                 with m.If(cycle == 7999):

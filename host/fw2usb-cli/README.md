@@ -50,4 +50,4 @@ reads the correlated native cycle/tick snapshot, submits one tag1/sy0 opaque ISO
 packet for a future cycle, and destroys the lease. Default lead8cycles;1..8000
 accepted. No uncertain send is retried. The native co-sim uses2cycles to keep
 simulated wait below its wall-clock socket timeout. Real USB latency admission
-still needs measurement; incoming non-root timer synchronization is not yet wired.
+still needs measurement; non-root allocation requires fresh cycle synchronization.
