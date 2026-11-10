@@ -13,7 +13,7 @@ class TransactionLink(Elaboratable):
         m = Module()
         m.submodules.link = self.link
         m.submodules.responder = self.responder
-        posted = Signal()
+        posted = Signal();started=Signal()
         speed = Signal(2)
         m.d.comb += [self.responder.rx.start.eq(self.link.phy.rx.start & ~self.link.selfid_phase),
                      self.responder.rx.valid.eq(self.link.phy.rx.valid & ~self.link.selfid_phase),
@@ -32,8 +32,10 @@ class TransactionLink(Elaboratable):
             m.d.sync += speed.eq(self.link.phy.rx.speed)
         with m.If(self.link.request.valid & self.link.request.ready):
             m.d.sync += posted.eq(1)
+        with m.If(self.link.user_grant):m.d.sync += started.eq(1)
+        with m.If(posted & ~started & self.link.request.ready):m.d.sync += [posted.eq(0),started.eq(0)]
         with m.If(self.responder.tx_valid & self.responder.tx_ready & self.responder.tx_last):
-            m.d.sync += posted.eq(0)
+            m.d.sync += [posted.eq(0),started.eq(0)]
         with m.If(self.link.phy.bus_reset | ~self.link.phy.enable):
-            m.d.sync += posted.eq(0)
+            m.d.sync += [posted.eq(0),started.eq(0)]
         return m
