@@ -17,7 +17,7 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --all
       - name: no_std cross-build (firmware target)
-        run: cargo build --workspace --lib --target thumbv7em-none-eabihf
+        run: cargo build -p fw-amdtp -p fw-phy-model -p fw-1394 --lib --target thumbv7em-none-eabihf
 
   gateware:
     runs-on: ubuntu-latest
@@ -55,6 +55,11 @@ jobs:
       - run: python gateware/build.py --core syt
       - run: python gateware/build.py --core iso_rx
       - run: python gateware/build.py --core iso_tx
+      - run: python gateware/build.py --core usb_raw
+      - run: python gateware/build.py --core raw_iso
+      - run: python gateware/build.py --core frame_encoder
+      - run: python gateware/build.py --core frame_decoder
+      - run: PYTHONPATH=gateware python gateware/sim/cosim.py --cycles 8
       - run: python gateware/build.py --route
       - uses: actions/upload-artifact@v4
         with:

@@ -86,6 +86,7 @@ class Peer:
             self.node_id = None
         elif kind == 'initialized':
             self.node_id = 0xffc0 | value
+            self.device.physical_id = value
         elif kind == 'transmitted' and len(value.data) == 1 and self.reply is not None:
             data,self.reply = self.reply,None
             self.bus.request(self.node,data,kind='fair')

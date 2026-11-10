@@ -21,6 +21,8 @@ class IsoAudioReceiver(Elaboratable):
         self.busy=Signal()
         self.losses=Signal(32)
         self.dbc_gap=Signal()
+        self.payload_start=Signal();self.payload_valid=Signal();self.payload_ready=Signal(init=1)
+        self.payload_byte=Signal(8);self.payload_end=Signal();self.payload_length=Signal(16)
 
     def elaborate(self, platform):
         m=Module()
@@ -35,7 +37,8 @@ class IsoAudioReceiver(Elaboratable):
                      wp.en.eq(self.rx.valid & accept & (count>=8) & (count<8+self.capacity)),
                      wp.addr.eq(count-8),wp.data.eq(self.rx.byte),rp.addr.eq(read_index),rp.en.eq(1),
                      codec.byte.eq(rp.data),self.sample.eq(codec.sample),self.sample_channel.eq(codec.channel),
-                     self.sample_valid.eq(codec.sample_valid),self.syt.eq(codec.syt),self.dbc_gap.eq(codec.dbc_gap)]
+                     self.sample_valid.eq(codec.sample_valid),self.syt.eq(codec.syt),self.dbc_gap.eq(codec.dbc_gap),
+                     self.payload_byte.eq(rp.data),self.payload_length.eq(length)]
         m.d.sync += [self.done.eq(0),self.error.eq(0)]
         with m.If(codec.sample_valid & ~self.sample_ready):
             m.d.sync += self.losses.eq(self.losses+1)
@@ -72,18 +75,19 @@ class IsoAudioReceiver(Elaboratable):
                         m.d.sync += [length.eq(validator.length),read_index.eq(0)]
                         m.next='START'
             with m.State('START'):
-                m.d.comb += codec.start.eq(1)
+                m.d.comb += [codec.start.eq(1),self.payload_start.eq(1)]
                 m.next='WAIT'
             with m.State('WAIT'):
                 m.next='BYTE'
             with m.State('BYTE'):
-                m.d.comb += codec.valid.eq(1)
-                with m.If(read_index+1==length):m.next='END'
-                with m.Else():
-                    m.d.sync += read_index.eq(read_index+1)
-                    m.next='WAIT'
+                m.d.comb += [codec.valid.eq(self.payload_ready),self.payload_valid.eq(1)]
+                with m.If(self.payload_ready):
+                    with m.If(read_index+1==length):m.next='END'
+                    with m.Else():
+                        m.d.sync += read_index.eq(read_index+1)
+                        m.next='WAIT'
             with m.State('END'):
-                m.d.comb += codec.end.eq(1)
+                m.d.comb += [codec.end.eq(1),self.payload_end.eq(1)]
                 m.next='DONE'
             with m.State('DONE'):
                 m.d.sync += [self.done.eq(1),self.error.eq(codec.error)]

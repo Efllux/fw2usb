@@ -18,12 +18,15 @@ from fw2usb.responder import TransactionResponder
 from fw2usb.transaction_link import TransactionLink
 from fw2usb.amdtp import AmdtpReceiver, AmdtpTransmitter, SytEngine
 from fw2usb.iso import IsoAudioReceiver, IsoAudioTransmitter
+from fw2usb.usb_device import RawUsbDevice
+from fw2usb.raw_iso_bridge import RawIsoBridge
+from fw2usb.tunnel import FrameEncoder, FrameDecoder
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--route', action='store_true')
-    parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive', 'transmit', 'phy_link', 'crc32', 'cycle', 'selfid', 'packet_rx', 'packet_tx', 'ack', 'cycle_master', 'link_layer', 'csr', 'rom_reader', 'transaction', 'transaction_link', 'amdtp_rx', 'amdtp_tx', 'syt', 'iso_rx', 'iso_tx'], default='smoke')
+    parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive', 'transmit', 'phy_link', 'crc32', 'cycle', 'selfid', 'packet_rx', 'packet_tx', 'ack', 'cycle_master', 'link_layer', 'csr', 'rom_reader', 'transaction', 'transaction_link', 'amdtp_rx', 'amdtp_tx', 'syt', 'iso_rx', 'iso_tx', 'usb_raw', 'raw_iso', 'frame_encoder', 'frame_decoder'], default='smoke')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
     out = root / 'build'
@@ -33,7 +36,7 @@ def main():
     constructors = {'smoke': Heartbeat, 'lreq': LreqSerializer,
                     'status': StatusReceiver, 'receive': ReceiveAdapter, 'transmit': TransmitAdapter, 'phy_link': PhyLink, 'crc32': Crc32, 'cycle': CycleTimer, 'selfid': SelfIdCapture, 'packet_rx': PacketReceiver, 'packet_tx': PacketTransmitter,
                     'ack': AckDecision, 'cycle_master': CycleMaster, 'link_layer': LinkLayer, 'csr': CsrBank, 'rom_reader': RomReader, 'transaction': TransactionResponder, 'transaction_link': TransactionLink, 'amdtp_rx': AmdtpReceiver, 'amdtp_tx': AmdtpTransmitter,
-                    'syt': SytEngine, 'iso_rx': IsoAudioReceiver, 'iso_tx': IsoAudioTransmitter}
+                    'syt': SytEngine, 'iso_rx': IsoAudioReceiver, 'iso_tx': IsoAudioTransmitter, 'usb_raw': RawUsbDevice, 'raw_iso': RawIsoBridge, 'frame_encoder': FrameEncoder, 'frame_decoder': FrameDecoder}
     port_names = {
         'packet_rx': ['start', 'valid', 'byte', 'end', 'phy_error', 'good', 'bad', 'header_good', 'tcode', 'length'],
         'packet_tx': ['start', 'has_data', 'valid', 'ready', 'byte', 'header_last', 'data_last',
@@ -44,6 +47,10 @@ def main():
         'rom_reader': ['start', 'bus_reset', 'local_node', 'remote_node', 'tx_valid', 'tx_ready', 'tx_byte',
                        'tx_last', 'response_valid', 'response_source', 'response_label', 'response_data',
                        'response_rcode', 'done', 'error', 'busy', 'length', 'read_index', 'read_data'],
+        'raw_iso': ['generation','handle','cycle_time','ticks','bulk_valid','bulk_ready','bulk_byte','bulk_last','sequence'],
+        'frame_encoder': ['start','kind','opcode','id','status','generation','length','valid','ready','byte','out_valid','out_ready','out_byte','out_last','busy','error'],
+        'frame_decoder': ['valid','ready','byte','reset','command_valid','command_ready','opcode','id','generation','length','halted','read_index','read_data'],
+        'usb_raw': ['in_valid','in_ready','in_byte','in_last','out_valid','out_ready','out_byte','connect','clock','reset'],
         'amdtp_rx': ['start','valid','byte','end','sample_valid','sample','channel','frame','syt','dbc','dbs','error','dbc_gap'],
         'amdtp_tx': ['start','sid','dbs','dbc','fdf','syt','frames','sample','sample_valid','sample_ready','valid','ready','byte','last','busy'],
         'syt': ['cycle','advance','data','syt','fdf','frames'],
@@ -71,6 +78,11 @@ def main():
     }
     dut = constructors[args.core]()
     ports = [getattr(dut, name) for name in port_names[args.core]]
+    if args.core == 'raw_iso':
+        ports.extend(getattr(dut.iso.rx,name) for name in ['start','valid','byte','end','phy_error'])
+        ports.extend([dut.iso.channel,dut.iso.error,dut.iso.losses])
+    if args.core == 'usb_raw':
+        ports.extend([dut.ulpi.data.i,dut.ulpi.data.o,dut.ulpi.data.oe,dut.ulpi.nxt.i,dut.ulpi.stp.o,dut.ulpi.dir.i,dut.ulpi.rst.o])
     if args.core == 'iso_rx':
         ports.extend(getattr(dut.rx,name) for name in ['start','valid','byte','end','phy_error'])
     if args.core == 'iso_tx':

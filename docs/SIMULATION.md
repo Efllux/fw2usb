@@ -277,3 +277,30 @@ lock correlation is claimed. IEC61883-1/6 wire facts cross-checked against the
 PCR payload defaults are development fixtures; per-device overhead/admission
 values still require profile validation. DBS=0/256-slot generic streams are outside
 these bounded audio profiles.
+
+## J USB / host and end-to-end byte-stream co-simulation
+
+Pinned LUNA0.2.3 ULPI HS core supplies standard enumeration, vendor GET_CAPS and
+512-byte bulk endpoints. Descriptor/control-handler tests and ECP5 synthesis pass.
+Explicit exported USB clock/reset prevent synthesis from pruning an undriven
+clock domain; only a real nonempty USB core is counted. Board clock/reset polarity,
+HS electrical/token interoperability and physical throughput remain unverified.
+The standalone core advertises capability0 until bridge command-worker integration.
+
+Rust nusb host discovers raw endpoints and implements list/bus-info/self-ID,
+quadlet reads/writes, root ROM dump with CRC/bounds checking, and ISO-to-PCM24 WAV.
+Bounded transcript replay is a no-hardware backend, not a vendor capture. USB
+framing is transfer-boundary independent; labels/cookies/generations are checked.
+A separate bounded event queue prevents control calls from silently consuming
+active ISO records. Recording destroys its handle on success and failure.
+
+`sim/cosim.py` executes model reset/self-ID, real wire ROM/CMP/DICE ownership
+transactions, drifting/jittered device audio, RTL PHY RX/CRC, retained RAM,
+AM824 decode, SCLK→USB async FIFO and RTL FW2R framing, then the actual Rust CLI
+produces bit-exact WAVs for both families. SCLK/USB have independent frequency
+errors and deterministic edge jitter. The64-cycle local run passed392 BeBoB and
+384 DICE frames; malformed sequence/generation transcripts fail without publishing
+new WAVs. Control operations use behavioral transaction peers and recorded USB
+request/response transcripts; the USB boundary is bulk bytes, not LUNA token/
+electrical simulation. Full live command-worker, credit/reset-epoch integration,
+realistic vendor AV/C capabilities and real captures remain explicit gaps.

@@ -50,3 +50,21 @@ credits or FFADO period sizes. USB2 cannot carry every S400/S800 workload.
 Admission sums both directions, endpoint overhead and measured sustainable bulk
 throughput; reject excess instead of dropping secretly. Bus resets, removal,
 app death, out-of-order completion and exhausted credits are mandatory tests.
+
+## Executable v0 refinements
+
+Host framing and RTL encoder/decoder now implement the24-byte FW2R header. The
+bounded hardware decoder halts on invalid magic/version/kind/cookie/length and
+requires an interface/session reset. USB short packets never delimit records.
+Opcode0003 returns bus-info (`local u16, root u16, nodes u16, flags u16`, LE);
+0004 returns raw big-endian self-ID/inverse pairs. ISO_CREATE's initial bounded
+fixture request is direction/channel/speed/reserved bytes, max packet u32 and
+ring packets u32; its response starts with handle u32. ISO_DESTROY payload is
+handle u32. ISO_DATA flag bit0 means valid header, bit1 valid data CRC; a host must
+reject missing validity flags, sequence gaps and mismatched generations.
+
+Live transport streams and synthetic transcript replay share the Rust parser.
+The standalone LUNA transport currently advertises capability0 until the full
+bridge worker is attached. No physical USB transfer or device support claim follows
+from byte-stream co-simulation. Credit negotiation and fully attached live command
+handling remain tracked implementation work.
