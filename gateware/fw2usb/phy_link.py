@@ -46,7 +46,7 @@ class PhyLink(Elaboratable):
         phy_ctl = Signal(2)
         allowed = Signal()
         m.d.comb += [
-            allowed.eq(((self.request.kind >= 4) | ~self.pending) &
+            allowed.eq(((self.request.kind >= 4) | (~self.pending & ~self.tx.busy)) &
                        ((self.request.kind != 4) | ~self.read_pending) &
                        ((self.request.kind >= 4) | (self.request.speed == 0) |
                         (self.request.speed == 2) | (self.request.speed == 4))),
