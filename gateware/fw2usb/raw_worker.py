@@ -7,6 +7,7 @@ request, disables raw ISO and emits a new generation event at a frame boundary.
 from amaranth import Array, Cat, Const, Elaboratable, Module, Mux, ResetInserter, Signal
 from fw2usb.async_request import AsyncRequestEncoder
 from fw2usb.link_layer import LinkLayer
+from fw2usb.recovery import PhyRecovery
 from fw2usb.tunnel import FrameDecoder, FrameEncoder
 
 
@@ -14,7 +15,7 @@ class RawWorker(Elaboratable):
     def __init__(self, *, iso_capacity=512):
         self.iso_capacity=iso_capacity
         self.command=FrameDecoder(capacity=512)
-        self.link=LinkLayer()
+        self.link=LinkLayer();self.recovery=PhyRecovery()
         self.epoch_reset=Signal()
         self.session_reset=Signal()
         self.cycle_master_enable=Signal()
@@ -32,11 +33,16 @@ class RawWorker(Elaboratable):
     def elaborate(self,platform):
         m=Module();m.submodules.command=self.command;m.submodules.link=self.link
         encoder=FrameEncoder();m.submodules.response=ResetInserter(self.session_reset)(encoder)
-        abort_request=Signal()
+        abort_request=Signal();user_request=Signal()
+        m.submodules.recovery=recovery=self.recovery
         m.d.comb += self.command.reset.eq(self.session_reset)
         status=self.link.phy.status
         reset=Signal()
         m.d.comb += reset.eq(self.epoch_reset | (status.flags_valid & status.flags_mask[1] & status.flags[1]))
+        m.d.comb += [recovery.start.eq(abort_request | (self.session_reset & (self.link.phy.pending | self.link.phy.tx.busy))),
+                     recovery.bus_reset.eq(reset),recovery.register_valid.eq(status.register_valid),recovery.register_address.eq(status.address),recovery.register_data.eq(status.data),
+                     recovery.ready.eq(self.link.request.ready & recovery.active),self.link.request.valid.eq(Mux(recovery.active,recovery.valid,user_request)),
+                     self.link.request.address.eq(recovery.address),self.link.request.data.eq(recovery.data)]
         request=AsyncRequestEncoder();m.submodules.request=ResetInserter(reset | self.session_reset | abort_request)(request)
         sid_words=Array(Signal(32,name=f'selfid_word{i}') for i in range(63))
         selfid_phase=Signal(init=1);root=Signal(6);local_root=Signal();topology_error=Signal()
@@ -74,7 +80,7 @@ class RawWorker(Elaboratable):
         result_length=Signal(16);result_quadlet=Signal();ack=Signal(8);rcode=Signal(8);completion_ticks=Signal(64)
         mode=Signal(3);response_opcode=Signal(16);response_status=Signal(32);response_id=Signal(32)
         response_length=Signal(16);response_index=Signal(16);event=Signal()
-        bus_info=Cat(self.local_node,root,Const(0x3ff,10),self.node_count,Const(0,9),self.ready,local_root,topology_error,Const(0,13))
+        bus_info=Cat(self.local_node,root,Const(0x3ff,10),self.node_count,Const(0,9),(self.ready & ~recovery.active & ~recovery.failed),local_root,topology_error,recovery.active,recovery.failed,Const(0,11))
         complete=Cat(ack,rcode,Const(0,16),result_length,Const(0,16),completion_ticks)
         caps=Const(int.from_bytes(bytes.fromhex('00000000000001000700000000000000'),'little'),128)
         pair=sid_words[response_index>>3]
@@ -94,7 +100,7 @@ class RawWorker(Elaboratable):
                      encoder.status.eq(response_status),encoder.generation.eq(self.generation),encoder.length.eq(response_length),
                      encoder.valid.eq(1),encoder.byte.eq(payload_byte),encoder.out_ready.eq(self.out_ready),
                      self.out_valid.eq(encoder.out_valid),self.out_byte.eq(encoder.out_byte),self.out_last.eq(encoder.out_last),
-                     self.link.request.kind.eq(3),self.link.request.speed.eq(speed<<1),
+                     self.link.request.kind.eq(Mux(recovery.active,recovery.kind,3)),self.link.request.speed.eq(speed<<1),
                      self.link.tx_valid.eq(request.valid),self.link.tx_byte.eq(request.byte),self.link.tx_last.eq(request.last),
                      request.ready.eq(self.link.tx_ready),request.destination.eq(destination),request.source.eq(self.local_node),
                      request.label.eq(active_label),request.tcode.eq(tcode),request.address.eq(address),request.length.eq(length[:16]),
@@ -126,7 +132,8 @@ class RawWorker(Elaboratable):
                             with m.Case(3):m.d.sync += [mode.eq(0),response_length.eq(8)];m.next='REPLY'
                             with m.Case(4):m.d.sync += [mode.eq(1),response_length.eq(self.node_count<<3)];m.next='REPLY'
                             with m.Case(0x100):
-                                with m.If(~self.ready | self.link.phy.pending | self.link.phy.tx.busy):m.d.sync += response_status.eq(3);m.next='REPLY'
+                                with m.If(recovery.failed):m.d.sync += response_status.eq(6);m.next='REPLY'
+                                with m.Elif(recovery.active | ~self.ready | self.link.phy.pending | self.link.phy.tx.busy):m.d.sync += response_status.eq(3);m.next='REPLY'
                                 with m.Elif(self.command.length<24):m.d.sync += response_status.eq(1);m.next='REPLY'
                                 with m.Else():m.d.sync += parse_index.eq(0);m.next='PARSE'
                             with m.Case(0x200):
@@ -182,7 +189,7 @@ class RawWorker(Elaboratable):
                     m.d.comb += abort_request.eq(1)
                     m.d.sync += [response_status.eq(6),response_length.eq(16),mode.eq(2),rcode.eq(255),completion_ticks.eq(ticks)]
                     m.next='REPLY'
-                m.d.comb += self.link.request.valid.eq(request.valid & ~posted)
+                m.d.comb += user_request.eq(request.valid & ~posted)
                 with m.If(request.valid & request.ready & request.last):m.next='WAIT'
                 with m.If(reset | (self.command.generation!=self.generation)):m.d.sync += [response_status.eq(4),response_length.eq(0)];m.next='REPLY'
             with m.State('WAIT'):

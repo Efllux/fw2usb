@@ -21,6 +21,7 @@ struct Iso {
     callback: Receive,
     lease: Option<u32>,
     sequence: Option<u32>,
+    dropped: u32,
 }
 pub struct Handle {
     session: Option<Session>,
@@ -349,6 +350,7 @@ unsafe extern "C" fn raw1394_iso_recv_init(
         callback: cb,
         lease: None,
         sequence: None,
+        dropped: 0,
     });
     0
 }
@@ -377,6 +379,8 @@ unsafe extern "C" fn raw1394_iso_recv_start(
     match h.session().and_then(|s| s.call(0x200, p).map_err(|_| ())) {
         Ok(r) if r.len() >= 4 => {
             h.iso.as_mut().unwrap().lease = Some(u32::from_le_bytes(r[..4].try_into().unwrap()));
+            h.iso.as_mut().unwrap().sequence = None;
+            h.iso.as_mut().unwrap().dropped = 0;
             0
         }
         _ => errno(libc::EIO),
@@ -451,11 +455,19 @@ unsafe extern "C" fn raw1394_loop_iterate(handle: *mut Handle) -> c_int {
         return errno(libc::EPROTO);
     }
     let seq = q(8);
-    if i.sequence.is_some_and(|old| seq != old.wrapping_add(1)) {
-        return errno(libc::EOVERFLOW);
+    if let Some(old) = i.sequence {
+        let delta = seq.wrapping_sub(old);
+        if delta != 1 {
+            if delta > 0 && delta < 0x8000_0000 {
+                i.sequence = Some(seq);
+                i.dropped = i.dropped.saturating_add(delta - 1);
+            }
+            return errno(libc::EOVERFLOW);
+        }
     }
     i.sequence = Some(seq);
     let cb = i.callback.unwrap();
+    let dropped = std::mem::take(&mut i.dropped);
     let (channel, tag, sy, cycle) = (p[28], p[29], p[30], (q(12) >> 12) & 0x1fff);
     let result = cb(
         handle,
@@ -465,7 +477,7 @@ unsafe extern "C" fn raw1394_loop_iterate(handle: *mut Handle) -> c_int {
         tag,
         sy,
         cycle,
-        0,
+        dropped,
     );
     if result == 2 {
         return errno(libc::EIO);
@@ -754,6 +766,60 @@ mod tests {
             assert_eq!(raw1394_get_generation(h), 2);
             assert_eq!(raw1394_get_local_id(h), 0xffff);
             assert_eq!(raw1394_get_nodecount(h), 0);
+            raw1394_destroy_handle(h);
+        }
+    }
+    #[test]
+    fn review_sequence_gap_recovers() {
+        unsafe extern "C" fn keep(
+            _: *mut Handle,
+            _: *mut u8,
+            _: u32,
+            _: u8,
+            _: u8,
+            _: u8,
+            _: u32,
+            _: u32,
+        ) -> c_int {
+            0
+        }
+        unsafe {
+            let mut events = std::collections::VecDeque::new();
+            for seq in [0u32, 2, 3, u32::MAX, 0] {
+                let mut payload = vec![0; 36];
+                payload[..4].copy_from_slice(&7u32.to_le_bytes());
+                payload[4..8].copy_from_slice(&1u32.to_le_bytes());
+                payload[8..12].copy_from_slice(&seq.to_le_bytes());
+                payload[24..28].copy_from_slice(&4u32.to_le_bytes());
+                payload[28..32].copy_from_slice(&[3, 1, 0, 3]);
+                events.push_back(Frame {
+                    kind: 2,
+                    opcode: 0x201,
+                    id: 0,
+                    status: 0,
+                    generation: 1,
+                    payload,
+                });
+            }
+            let h = raw1394_new_handle();
+            (*h).session = Some(Session::new(Box::new(Mock { events }), 1));
+            assert_eq!(raw1394_iso_recv_init(h, Some(keep), 1, 512, 3, -1, -1), 0);
+            assert_eq!(raw1394_iso_recv_start(h, -1, -1, 0), 0);
+            assert_eq!(raw1394_loop_iterate(h), 0);
+            assert_eq!(raw1394_loop_iterate(h), -1);
+            assert_eq!(
+                raw1394_loop_iterate(h),
+                0,
+                "one lost packet must not poison all later sequence numbers"
+            );
+            raw1394_iso_stop(h);
+            assert_eq!(raw1394_iso_recv_start(h, -1, -1, 0), 0);
+            assert_eq!(
+                raw1394_loop_iterate(h),
+                0,
+                "new lease accepts fresh sequence baseline"
+            );
+            assert_eq!(raw1394_loop_iterate(h), 0, "sequence wraps MAX to zero");
             raw1394_destroy_handle(h);
         }
     }
