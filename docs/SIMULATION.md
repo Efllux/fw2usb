@@ -413,3 +413,13 @@ Native packet-zero topology now rejects missing/duplicate IDs and root mismatch.
 Timed-out/USB-aborted labels are quarantined for a configurable8seconds (bridge
 policy, not a claimed IEEE normative constant); all64 retired labels return BUSY.
 Quarantine survives USB reset and clears on native bus generation change.
+
+### Raw TX components in progress
+
+RawIsoTransmitter produces opaque ISO headers, padding and both wire CRCs. Empty,
+odd-sized and backpressured payloads, latched metadata and capacity rejection are
+tested;33 Rust fw-1394 ISO golden packets match byte for byte. IsoTxWindow tests
+packed timer validation,128-second wrap,64-second horizon and conservative
+serialization margin (bridge policy, not a normative IEEE constant). Packet-source
+synthesis/check passes. These components are not yet connected to native TX leases,
+arbitration or grant-time deadline rejection; raw TX remains unsupported.

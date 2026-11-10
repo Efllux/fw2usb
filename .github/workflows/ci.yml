@@ -60,6 +60,7 @@ jobs:
       - run: python gateware/build.py --core syt
       - run: python gateware/build.py --core iso_rx
       - run: python gateware/build.py --core iso_tx
+      - run: python gateware/build.py --core raw_iso_tx
       - run: python gateware/build.py --core usb_raw
       - run: python gateware/build.py --core raw_iso
       - run: python gateware/build.py --core frame_encoder
