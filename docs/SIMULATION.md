@@ -52,7 +52,7 @@ only clears pending requests; it does not emulate reset timing or self-ID.
 
 | G link/bus/device fixtures | CRC/packet/ACK/root cycle-start/self-ID/topology; Rust golden vectors and event-level tree bus; synthetic BeBoB/DICE control/audio | Full cable arbitration waveforms, spec-captured CRC vectors, complete vendor AV/C capabilities | Physical reset/self-ID/ACK/packet captures |
 | H/I transactions and audio | Bounded RTL CSR/IRM/CAS/responder/ROM reader, ISO RAM CRC commit, AM824 RX/TX and Rust golden SYT | Nested ROM traversal, full autonomous controller and duplex scheduling | Remote devices, full channel profiles |
-| J native raw bridge | LUNA HS transport, native PHY command worker, generation/lease resets, whole-frame CDC and packet/byte credit admission; Rust nusb/replay/WAV | Raw ISO TX/deadlines, incoming FCP/ARM leases, label quarantine and USB token co-sim | Enumeration/throughput/tail latency, IO closure |
+| J native raw bridge | LUNA HS transport, native PHY command worker, generation/lease resets, whole-frame CDC and packet/byte credit admission; Rust nusb/replay/WAV | Raw ISO TX/deadlines, incoming FCP/ARM leases and USB token co-sim | Enumeration/throughput/tail latency, IO closure |
 | K clock/UAC2 components | Rust drift/jitter/SYT frequency/filter/feedback/NCO, LUNA UAC2 controls/alts/atomic capture, runtime-bound stereo profile candidates | Native sample/control integration, qualified MCLK/PLL and production profile discovery | Audio clock jitter, USB OS interoperability |
 | L host skeletons | raw1394 core ABI/IRM/receive/reset callback tests and FFADO surface audit; buildable no-device CoreAudio vtable | Drop-in FFADO surface/reactor, CoreAudio daemon/rings/audio IO | Native driver lifecycle and real streams |
 | M board WIP | Original KiCad8 net/BOM/schematic; ERC0/0, placed69parts | Connector footprint/routing/thermal/SI;186 unconnected items; not clean DRC | All physical bring-up and manufacturing review |
@@ -384,7 +384,35 @@ WAV co-sim exercises the host credit exchanges. Busy-drop accounting inspects th
 selected-channel ISO header rather than treating unrelated async traffic as loss.
 74 gateware tests plus integrated ECP5 synthesis and Rust checks pass locally.
 Explicit credits do not establish USB sustainable throughput or a universal stream
-admission budget. Native worker/control and WAV replay are still separate tests.
+admission budget. Unified native worker/control/WAV coverage is described below; transcript replay remains separately tested.
+
+### Unified native host simulation
+
+`sim/native_cosim.py` connects the live Rust CLI Unix stream backend to the actual
+RTL USB-side CDC queues, native command worker, PHY pins, local CSR responder,
+ISO RAM/CRC/credits and complete-frame mux. The tree event clock advances with
+SCLK; native LREQ reserves bus ownership before streaming and completes at the
+PHY observer's end, rather than adding a second packet duration. Physical
+PHY-to-cable pipeline skew remains uncalibrated. LUNA tokens/electrical USB are
+replaced by an independently drifting/jittered bulk-byte port.
+
+Both families pass native reset/self-ID, remote ROM read, BeBoB PCR CAS or DICE
+owner/clock/enable writes, credit-based capture and bit-exact Rust WAV. A remote
+peer also reads our RTL ROM/reserves local IRM bandwidth while the host reads
+remote ROM; root cycle-start CRC/address checks run on the same PHY. Bad data CRC
+causes explicit loss and no published WAV. The native16-cycle runs passed104
+BeBoB and96 DICE frames before the final topology/quarantine changes; final8-cycle
+DICE and CRC-negative runs pass after those changes. Transcript replay remains a
+separate useful test; the native path does not manufacture control completions.
+
+This exposed and fixed stale buffered FIFO state across USB session reset:
+FIFO clock domains now receive real domain resets, including read-side buffers
+and AsyncFIFO's ResetSignal-based handshake. It also exposed cancelled fair
+requests stuck as posted. Reissue is allowed only before PHY grant/wire start.
+Native packet-zero topology now rejects missing/duplicate IDs and root mismatch.
+Timed-out/USB-aborted labels are quarantined for a configurable8seconds (bridge
+policy, not a claimed IEEE normative constant); all64 retired labels return BUSY.
+Quarantine survives USB reset and clears on native bus generation change.
 
 ### Independent review R23-1 recovery policy
 

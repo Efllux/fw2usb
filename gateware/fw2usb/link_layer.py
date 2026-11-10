@@ -17,6 +17,7 @@ class LinkLayer(Elaboratable):
         self.selfid = SelfIdCapture()
         self.cycle = CycleMaster()
         self.selfid_phase = Signal()
+        self.capacity = Signal(init=1)
         self.request = SimpleNamespace(valid=Signal(),ready=Signal(),kind=Signal(3),speed=Signal(3),
                                        address=Signal(4),data=Signal(8),accel=Signal())
         self.user_grant = Signal()
@@ -44,7 +45,7 @@ class LinkLayer(Elaboratable):
             ack.addressed.eq(self.packet.destination == self.cycle.node_id),
             ack.broadcast.eq(self.packet.destination[:6] == 63),
             ack.header_good.eq(self.packet.header_good), ack.data_good.eq(self.packet.good),
-            ack.tcode.eq(self.packet.tcode)]
+            ack.tcode.eq(self.packet.tcode),ack.capacity.eq(self.capacity)]
         with m.If(self.packet.header_decoded & (self.packet.destination == self.cycle.node_id) &
                   (self.packet.destination[:6] != 63) & (self.packet.tcode != 8) & (self.packet.tcode != 10)):
             m.d.sync += ack_wanted.eq(1)

@@ -3,7 +3,7 @@ No header fragments are interleaved. USB session reset flushes both FIFO write
 domains; native bus reset preserves USB byte framing and emits generation events.
 """
 from amaranth import ClockDomain,ClockSignal,ResetSignal,Elaboratable,Module,ResetInserter,Signal
-from amaranth.lib.cdc import PulseSynchronizer
+from amaranth.lib.cdc import PulseSynchronizer,AsyncFFSynchronizer
 from amaranth.lib.fifo import AsyncFIFOBuffered
 from fw2usb.usb_device import RawUsbDevice
 from fw2usb.raw_worker import RawWorker
@@ -11,8 +11,8 @@ from fw2usb.raw_iso_bridge import RawIsoBridge
 
 
 class RawUsbBridge(Elaboratable):
-    def __init__(self):
-        self.usb=RawUsbDevice(capabilities=15,external_domain=True)
+    def __init__(self, *, usb=None):
+        self.usb=usb if usb is not None else RawUsbDevice(capabilities=15,external_domain=True)
         self.worker=RawWorker(iso_capacity=4096)
         self.audio=RawIsoBridge(capacity=4096,cdc=False,opaque=True)
 
@@ -24,10 +24,17 @@ class RawUsbBridge(Elaboratable):
         m.submodules.audio=ResetInserter(reset_crossing.o)(self.audio)
         last_reset=Signal();m.d.usb += last_reset.eq(self.usb.reset_detected)
         m.d.comb += [reset_crossing.i.eq(self.usb.reset_detected & ~last_reset),self.worker.session_reset.eq(reset_crossing.o)]
-        incoming=AsyncFIFOBuffered(width=8,depth=1025,w_domain='usb',r_domain='sync')
-        outgoing=AsyncFIFOBuffered(width=9,depth=8193,w_domain='sync',r_domain='usb')
-        m.submodules.incoming=ResetInserter({'usb':self.usb.reset_detected})(incoming)
-        m.submodules.outgoing=ResetInserter({'sync':reset_crossing.o})(outgoing)
+        # Actual domain resets are required: ResetInserter on FIFO statements
+        # alone does not assert AsyncFIFO's ResetSignal-based read-side handshake.
+        session_reset=Signal()
+        m.submodules.session_reset_sync=AsyncFFSynchronizer(self.usb.reset_detected,session_reset,o_domain='sync')
+        m.domains += [ClockDomain('usb_session',local=True,async_reset=True),ClockDomain('sync_session',local=True,async_reset=True)]
+        m.d.comb += [ClockSignal('usb_session').eq(ClockSignal('usb')),ClockSignal('sync_session').eq(ClockSignal('sync')),
+                     ResetSignal('usb_session').eq(ResetSignal('usb')|self.usb.reset_detected),
+                     ResetSignal('sync_session').eq(ResetSignal('sync')|session_reset)]
+        incoming=AsyncFIFOBuffered(width=8,depth=1025,w_domain='usb_session',r_domain='sync_session')
+        outgoing=AsyncFIFOBuffered(width=9,depth=8193,w_domain='sync_session',r_domain='usb_session')
+        m.submodules.incoming=incoming;m.submodules.outgoing=outgoing
         m.d.comb += [incoming.w_data.eq(self.usb.out_byte),incoming.w_en.eq(self.usb.out_valid),self.usb.out_ready.eq(incoming.w_rdy),
                      self.worker.command.valid.eq(incoming.r_rdy),self.worker.command.byte.eq(incoming.r_data),incoming.r_en.eq(self.worker.command.ready),
                      self.audio.iso.rx.start.eq(self.worker.link.phy.rx.start & self.worker.iso_enabled & self.worker.iso_armed & ~self.worker.link.selfid_phase),

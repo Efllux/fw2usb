@@ -65,6 +65,39 @@ impl Session {
         }
         Ok(response[16..].to_vec())
     }
+    pub fn compare_swap(
+        &mut self,
+        node: u16,
+        address: u64,
+        compare: &[u8],
+        replacement: &[u8],
+    ) -> Result<Vec<u8>> {
+        if !matches!(compare.len(), 4 | 8)
+            || compare.len() != replacement.len()
+            || address >= 1 << 48
+            || address & 3 != 0
+        {
+            return Err("invalid compare-swap parameters".into());
+        }
+        let mut p = Vec::new();
+        p.extend(node.to_le_bytes());
+        p.extend([9, 2]);
+        p.extend(address.to_le_bytes());
+        p.extend(2u16.to_le_bytes());
+        p.extend(0u16.to_le_bytes());
+        p.extend((compare.len() as u32 * 2).to_le_bytes());
+        p.extend(200_000u32.to_le_bytes());
+        p.extend(compare);
+        p.extend(replacement);
+        let r = self.call(0x100, p)?;
+        if r.len() != 16 + compare.len()
+            || r[1] != 0
+            || u32::from_le_bytes(r[4..8].try_into()?) as usize != compare.len()
+        {
+            return Err("compare-swap failed".into());
+        }
+        Ok(r[16..].to_vec())
+    }
     pub fn iso_credit(&mut self, handle: u32, packets: u32, bytes: u32) -> Result<()> {
         let mut p = Vec::new();
         p.extend(handle.to_le_bytes());

@@ -7,15 +7,18 @@ request, disables raw ISO and emits a new generation event at a frame boundary.
 from amaranth import Array, Cat, Const, Elaboratable, Module, Mux, ResetInserter, Signal
 from fw2usb.async_request import AsyncRequestEncoder
 from fw2usb.link_layer import LinkLayer
+from fw2usb.responder import TransactionResponder
 from fw2usb.recovery import PhyRecovery
 from fw2usb.tunnel import FrameDecoder, FrameEncoder
 
 
 class RawWorker(Elaboratable):
-    def __init__(self, *, iso_capacity=512):
+    def __init__(self, *, iso_capacity=512, quarantine_ticks=8*24_576_000):
+        if not 0<quarantine_ticks<1<<31:raise ValueError('invalid quarantine interval')
+        self.quarantine_ticks=quarantine_ticks;self.quarantined_labels=Signal(64)
         self.iso_capacity=iso_capacity
         self.command=FrameDecoder(capacity=512)
-        self.link=LinkLayer();self.recovery=PhyRecovery()
+        self.link=LinkLayer();self.responder=TransactionResponder();self.recovery=PhyRecovery()
         self.epoch_reset=Signal()
         self.session_reset=Signal()
         self.cycle_master_enable=Signal()
@@ -34,26 +37,26 @@ class RawWorker(Elaboratable):
         self.out_valid=Signal();self.out_ready=Signal();self.out_byte=Signal(8);self.out_last=Signal()
 
     def elaborate(self,platform):
-        m=Module();m.submodules.command=self.command;m.submodules.link=self.link
+        m=Module();m.submodules.command=self.command;m.submodules.link=self.link;m.submodules.responder=service=self.responder
         encoder=FrameEncoder();m.submodules.response=ResetInserter(self.session_reset)(encoder)
         grant=Signal();grant_packets=Signal(6);grant_bytes=Signal(14);new_lease=Signal()
         m.d.comb += self.iso_admit.eq(self.iso_enabled & (self.iso_packet_credits!=0) & (self.iso_byte_credits>=self.iso_cost) & (self.iso_cost<=56+self.iso_maximum))
         with m.If(grant | self.iso_consume):
             m.d.sync += [self.iso_packet_credits.eq(self.iso_packet_credits+Mux(grant,grant_packets,0)-self.iso_consume),
                          self.iso_byte_credits.eq(self.iso_byte_credits+Mux(grant,grant_bytes,0)-Mux(self.iso_consume,self.iso_cost,0))]
-        abort_request=Signal();user_request=Signal()
+        abort_request=Signal();user_request=Signal();session_recover=Signal()
         m.submodules.recovery=recovery=self.recovery
         m.d.comb += self.command.reset.eq(self.session_reset)
         status=self.link.phy.status
         reset=Signal()
         m.d.comb += reset.eq(self.epoch_reset | (status.flags_valid & status.flags_mask[1] & status.flags[1]))
-        m.d.comb += [recovery.start.eq(abort_request | (self.session_reset & (self.link.phy.pending | self.link.phy.tx.busy))),
+        m.d.comb += [recovery.start.eq(abort_request | session_recover),
                      recovery.bus_reset.eq(reset),recovery.register_valid.eq(status.register_valid),recovery.register_address.eq(status.address),recovery.register_data.eq(status.data),
-                     recovery.ready.eq(self.link.request.ready & recovery.active),self.link.request.valid.eq(Mux(recovery.active,recovery.valid,user_request)),
+                     recovery.ready.eq(self.link.request.ready & recovery.active),
                      self.link.request.address.eq(recovery.address),self.link.request.data.eq(recovery.data)]
         request=AsyncRequestEncoder();m.submodules.request=ResetInserter(reset | self.session_reset | abort_request)(request)
         sid_words=Array(Signal(32,name=f'selfid_word{i}') for i in range(63))
-        selfid_phase=Signal(init=1);root=Signal(6);local_root=Signal();topology_error=Signal()
+        selfid_phase=Signal(init=1);root=Signal(6);local_root=Signal();topology_error=Signal();tree_closed=Signal();tree_depth=Signal(7)
         reset_pending=Signal();loss_pending=Signal();loss_seen=Signal(32)
         ticks=self.monotonic_ticks;divider=Signal();m.d.sync += divider.eq(~divider)
         with m.If(divider):m.d.sync += ticks.eq(ticks+1)
@@ -61,27 +64,69 @@ class RawWorker(Elaboratable):
                      self.link.cycle.node_id.eq(self.local_node),self.link.cycle.timer.root.eq(local_root & self.ready),
                      self.link.cycle.timer.enable.eq(self.cycle_master_enable & self.ready)]
         with m.If(self.link.selfid.accept & selfid_phase):
-            with m.If(self.link.selfid.physical_id<63):
-                m.d.sync += sid_words[self.link.selfid.physical_id].eq(self.link.selfid.packet)
-                with m.If(self.link.selfid.physical_id+1>self.node_count):
-                    m.d.sync += [self.node_count.eq(self.link.selfid.physical_id+1),root.eq(self.link.selfid.physical_id)]
-            with m.Else():m.d.sync += topology_error.eq(1)
+            packet=self.link.selfid.packet
+            children=sum(packet[i:i+2]==3 for i in (2,4,6))
+            parents=sum(packet[i:i+2]==2 for i in (2,4,6))
+            invalid=(self.link.selfid.physical_id!=self.node_count)|(self.node_count>=63)|tree_closed|packet[0]|(parents>1)|(children>tree_depth)|((parents==0)&(tree_depth-children+1!=1))
+            with m.If(invalid):m.d.sync += topology_error.eq(1)
+            with m.Else():
+                m.d.sync += [sid_words[self.link.selfid.physical_id].eq(packet),self.node_count.eq(self.node_count+1),
+                             root.eq(self.link.selfid.physical_id),tree_depth.eq(tree_depth-children+1)]
+                with m.If(parents==0):m.d.sync += tree_closed.eq(1)
         with m.If(self.link.selfid.error & selfid_phase):m.d.sync += topology_error.eq(1)
         with m.If(status.register_valid & (status.address==0)):
             m.d.sync += [self.local_node.eq(Cat(status.data[2:8],Const(0x3ff,10))),local_root.eq(status.data[1]),
-                         selfid_phase.eq(0),self.ready.eq(~topology_error & (status.data[2:8]<self.node_count))]
+                         selfid_phase.eq(0),self.ready.eq(~topology_error & tree_closed & (tree_depth==1) &
+                         (status.data[2:8]<self.node_count) & (status.data[1]==(status.data[2:8]==root)))]
         with m.If(self.iso_losses!=loss_seen):
             m.d.sync += [loss_seen.eq(self.iso_losses),loss_pending.eq(1)]
         with m.If(reset):
             m.d.sync += [self.generation.eq(self.generation+1),self.ready.eq(0),self.node_count.eq(0),
-                         selfid_phase.eq(1),topology_error.eq(0),self.iso_enabled.eq(0),reset_pending.eq(1)]
+                         selfid_phase.eq(1),topology_error.eq(0),tree_closed.eq(0),tree_depth.eq(0),self.iso_enabled.eq(0),reset_pending.eq(1)]
         parameters=Array(Signal(8,name=f'raw_parameter{i}') for i in range(28))
         parse_index=Signal(5)
         destination=Cat(parameters[0],parameters[1]);tcode=parameters[2][:4];speed=parameters[3][:2]
         address=Cat(*parameters[4:10]);upper_address=Cat(parameters[10],parameters[11])
         extended=Cat(parameters[12],parameters[13]);length=Cat(*parameters[16:20]);timeout_us=Cat(*parameters[20:24])
         quadlet=Cat(parameters[27],parameters[26],parameters[25],parameters[24])
+        service_owned=Signal();service_posted=Signal();service_started=Signal();wire_started=Signal();service_speed=Signal(2);capacity_at_start=Signal(init=1)
+        service_request=Signal();choose_service=Signal()
+        m.d.comb += [service.rx.start.eq(self.link.phy.rx.start & ~self.link.selfid_phase),
+                     service.rx.valid.eq(self.link.phy.rx.valid & ~self.link.selfid_phase),service.rx.byte.eq(self.link.phy.rx.byte),
+                     service.rx.end.eq(self.link.phy.rx.end & ~self.link.selfid_phase),service.rx.phy_error.eq(self.link.phy.rx.error),
+                     service.node_id.eq(self.local_node),service.bus_reset.eq(reset | ~self.link.phy.enable),
+                     service.csr.cycle_time.eq(self.link.cycle.timer.value),
+                     self.link.capacity.eq(Mux((self.link.packet.tcode==2)|(self.link.packet.tcode==6)|(self.link.packet.tcode==7)|(self.link.packet.tcode==11),1,capacity_at_start)),
+                     service_request.eq(service.tx_valid & ~service_posted),choose_service.eq(service_request),
+                     self.link.request.valid.eq(Mux(recovery.active,recovery.valid,service_request | user_request)),
+                     self.link.request.speed.eq(Mux(choose_service,service_speed<<1,speed<<1)),
+                     self.link.tx_valid.eq(Mux(service_owned,service.tx_valid,request.valid)),
+                     self.link.tx_byte.eq(Mux(service_owned,service.tx_byte,request.byte)),self.link.tx_last.eq(Mux(service_owned,service.tx_last,request.last)),
+                     service.tx_ready.eq(self.link.tx_ready & service_owned)]
+        with m.If(self.link.phy.rx.start):
+            m.d.sync += capacity_at_start.eq(~service.busy)
+            with m.If(~service.busy):m.d.sync += service_speed.eq(self.link.phy.rx.speed)
+        with m.If(self.link.request.valid & self.link.request.ready & (self.link.request.kind<4)):
+            m.d.sync += service_owned.eq(choose_service)
+            with m.If(choose_service):m.d.sync += service_posted.eq(1)
+        with m.If(self.link.user_grant):
+            with m.If(service_owned):m.d.sync += service_started.eq(1)
+            with m.Else():m.d.sync += wire_started.eq(1)
+        # A legacy fair request can be cancelled by RX before grant. Reissue
+        # only if no wire transmission started; never repeat an uncertain write.
+        with m.If(service_posted & ~service_started & self.link.request.ready):m.d.sync += service_posted.eq(0)
+        with m.If(service.tx_valid & service.tx_ready & service.tx_last):m.d.sync += [service_posted.eq(0),service_started.eq(0)]
+        with m.If(reset):m.d.sync += [service_posted.eq(0),service_owned.eq(0),service_started.eq(0),wire_started.eq(0)]
+        raw_retire=Signal()
         label=Signal(6);active_label=Signal(6);posted=Signal();timeout=Signal(32);limit=Signal(32)
+        with m.If(~self.link.phy.pending & ~self.link.phy.tx.busy):m.d.sync += raw_retire.eq(0)
+        with m.If(abort_request & (posted | (user_request & self.link.request.ready))):m.d.sync += raw_retire.eq(1)
+        quarantined=self.quarantined_labels;retire_label=Signal();scan=Signal(7);sweep=Signal(6)
+        expiry=Array(Signal(32,name=f'label_deadline{i}') for i in range(64))
+        delta=Signal(32);sweep_delta=Signal(32)
+        m.d.comb += [delta.eq(ticks[:32]-expiry[label]),sweep_delta.eq(ticks[:32]-expiry[sweep])]
+        m.d.sync += sweep.eq(sweep+1)
+        with m.If(quarantined.bit_select(sweep,1) & ~sweep_delta[31]):m.d.sync += quarantined.bit_select(sweep,1).eq(0)
         rx_header=Array(Signal(32,name=f'raw_rx_header{i}') for i in range(4))
         rx_data=Array(Signal(8,name=f'raw_rx_byte{i}') for i in range(256))
         rx_count=Signal(17);first_byte=Signal(8);held_quadlet=Signal(32)
@@ -108,13 +153,13 @@ class RawWorker(Elaboratable):
                      encoder.status.eq(response_status),encoder.generation.eq(self.generation),encoder.length.eq(response_length),
                      encoder.valid.eq(1),encoder.byte.eq(payload_byte),encoder.out_ready.eq(self.out_ready),
                      self.out_valid.eq(encoder.out_valid),self.out_byte.eq(encoder.out_byte),self.out_last.eq(encoder.out_last),
-                     self.link.request.kind.eq(Mux(recovery.active,recovery.kind,3)),self.link.request.speed.eq(speed<<1),
-                     self.link.tx_valid.eq(request.valid),self.link.tx_byte.eq(request.byte),self.link.tx_last.eq(request.last),
-                     request.ready.eq(self.link.tx_ready),request.destination.eq(destination),request.source.eq(self.local_node),
+                     self.link.request.kind.eq(Mux(recovery.active,recovery.kind,3)),
+                     request.ready.eq(self.link.tx_ready & ~service_owned),request.destination.eq(destination),request.source.eq(self.local_node),
                      request.label.eq(active_label),request.tcode.eq(tcode),request.address.eq(address),request.length.eq(length[:16]),
                      request.extended.eq(extended),request.quadlet.eq(quadlet),request.data_byte.eq(self.command.read_data)]
         m.d.comb += self.command.read_index.eq(24+request.data_index)
-        with m.If(self.link.request.valid & self.link.request.ready):m.d.sync += posted.eq(1)
+        with m.If(self.link.request.valid & self.link.request.ready & (self.link.request.kind<4) & ~choose_service):m.d.sync += posted.eq(1)
+        with m.If(posted & ~wire_started & self.link.request.ready):m.d.sync += posted.eq(0)
         with m.If(self.link.phy.rx.start):m.d.sync += rx_count.eq(0)
         with m.If(self.link.phy.rx.valid):
             with m.If(rx_count==0):m.d.sync += first_byte.eq(self.link.phy.rx.byte)
@@ -141,9 +186,9 @@ class RawWorker(Elaboratable):
                             with m.Case(4):m.d.sync += [mode.eq(1),response_length.eq(self.node_count<<3)];m.next='REPLY'
                             with m.Case(0x100):
                                 with m.If(recovery.failed):m.d.sync += response_status.eq(6);m.next='REPLY'
-                                with m.Elif(recovery.active | ~self.ready | self.link.phy.pending | self.link.phy.tx.busy):m.d.sync += response_status.eq(3);m.next='REPLY'
+                                with m.Elif(recovery.active | ~self.ready | raw_retire):m.d.sync += response_status.eq(3);m.next='REPLY'
                                 with m.Elif(self.command.length<24):m.d.sync += response_status.eq(1);m.next='REPLY'
-                                with m.Else():m.d.sync += parse_index.eq(0);m.next='PARSE'
+                                with m.Else():m.d.sync += [parse_index.eq(0),scan.eq(0)];m.next='PARSE'
                             with m.Case(0x200):
                                 with m.If(self.command.length!=12):m.d.sync += response_status.eq(1);m.next='REPLY'
                                 with m.Else():m.d.sync += parse_index.eq(0);m.next='PARSE_ISO'
@@ -169,8 +214,11 @@ class RawWorker(Elaboratable):
                         ((tcode==9)&((extended!=2)|((length!=8)&(length!=16)))))
                 with m.If(self.command.generation!=self.generation):m.d.sync += response_status.eq(4);m.next='REPLY'
                 with m.Elif(invalid):m.d.sync += response_status.eq(1);m.next='REPLY'
+                with m.Elif(quarantined.bit_select(label,1) & delta[31]):
+                    with m.If(scan==63):m.d.sync += response_status.eq(3);m.next='REPLY'
+                    with m.Else():m.d.sync += [label.eq(label+1),scan.eq(scan+1)]
                 with m.Else():
-                    m.d.sync += [active_label.eq(label),label.eq(label+1),posted.eq(0),timeout.eq(0),
+                    m.d.sync += [active_label.eq(label),label.eq(label+1),posted.eq(0),wire_started.eq(0),timeout.eq(0),
                                  limit.eq(Mux(timeout_us>1_000_000,49_152_000,Mux(timeout_us==0,49_152,(timeout_us*49152)//1000)))]
                     m.next='START'
             with m.State('PARSE_ISO'):
@@ -216,6 +264,7 @@ class RawWorker(Elaboratable):
             with m.State('SEND'):
                 m.d.sync += timeout.eq(timeout+1)
                 with m.If(timeout>=limit):
+                    m.d.comb += retire_label.eq(1)
                     m.d.comb += abort_request.eq(1)
                     m.d.sync += [response_status.eq(6),response_length.eq(16),mode.eq(2),rcode.eq(255),completion_ticks.eq(ticks)]
                     m.next='REPLY'
@@ -244,6 +293,7 @@ class RawWorker(Elaboratable):
                             with m.Else():m.d.sync += [result_length.eq(rx_header[3][16:32]),response_length.eq(16+rx_header[3][16:32])]
                     m.next='REPLY'
                 with m.If(timeout>=limit):
+                    m.d.comb += retire_label.eq(1)
                     m.d.sync += [response_status.eq(6),response_length.eq(16),mode.eq(2),rcode.eq(255),completion_ticks.eq(ticks)];m.next='REPLY'
                 with m.If(reset | (self.command.generation!=self.generation)):m.d.sync += [response_status.eq(4),response_length.eq(0)];m.next='REPLY'
             with m.State('REPLY'):
@@ -252,6 +302,12 @@ class RawWorker(Elaboratable):
                 with m.If(encoder.ready):m.d.sync += response_index.eq(response_index+1)
                 with m.If(encoder.out_valid & self.out_ready & encoder.out_last):
                     m.d.comb += self.command.command_ready.eq(~event);m.next='IDLE'
+        session_abort=self.session_reset & (fsm.ongoing('SEND')|fsm.ongoing('WAIT'))
+        m.d.comb += session_recover.eq(session_abort & posted & ~service_owned & (self.link.phy.pending | self.link.phy.tx.busy))
+        with m.If(session_abort & posted & (self.link.phy.pending | self.link.phy.tx.busy)):m.d.sync += raw_retire.eq(1)
+        with m.If(retire_label | session_abort):
+            m.d.sync += [quarantined.bit_select(active_label,1).eq(1),expiry[active_label].eq(ticks[:32]+self.quarantine_ticks)]
+        with m.If(reset):m.d.sync += [quarantined.eq(0),raw_retire.eq(0)]
         with m.If(self.session_reset):
             m.d.sync += [fsm.state.eq(fsm.encoding['IDLE']),self.iso_enabled.eq(0),reset_pending.eq(0),loss_pending.eq(0)]
         with m.If(new_lease | reset | self.session_reset | ~self.iso_enabled):

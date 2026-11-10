@@ -34,3 +34,19 @@ class BusTest(unittest.TestCase):
         bus.run()
         self.assertTrue(any(kind == 'fairness_reset' for _,kind,_ in bus.trace))
         self.assertTrue(all(frame.epoch == bus.epoch for frame in frames))
+
+    def test_streamed_reservation_ownership_cancel_and_reset(self):
+        bus=Bus([(0,1)],nodes=2,root=0,gap_count=5);bus.reset();bus.run();grants=[]
+        self.assertTrue(bus.reserve(0,granted=grants.append));bus.run(bus.now+10000)
+        self.assertEqual(len(grants),1);token=grants[0]
+        self.assertTrue(bus.request(1,b'peer',kind='iso'))
+        bus.run(bus.now+1000);self.assertFalse(any(k=='transmit' for _,k,_ in bus.trace))
+        completed=bus.now;self.assertTrue(bus.complete_reservation(token,b'native'))
+        bus.run();frames=[f for _,k,f in bus.trace if k=='transmit']
+        self.assertEqual([f.source for f in frames],[0,1]);self.assertEqual(frames[0].end_ns,completed)
+        self.assertGreater(frames[1].start_ns,completed)
+        self.assertFalse(bus.complete_reservation(token,b'duplicate'))
+        self.assertTrue(bus.reserve(0,granted=grants.append));self.assertTrue(bus.cancel_reservation(0));bus.run()
+        self.assertEqual(len(grants),1)
+        self.assertTrue(bus.reserve(0,granted=grants.append));bus.run(bus.now+10000)
+        old=grants[-1];bus.reset();bus.run();self.assertFalse(bus.complete_reservation(old,b'stale'))

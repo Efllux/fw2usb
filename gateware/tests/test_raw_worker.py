@@ -110,10 +110,34 @@ class RawWorkerTest(unittest.TestCase):
             self.assertEqual(device.fcp_responses[-1],bytes.fromhex('08ff30ff'))
             timeout=struct.pack('<HBBQHHII',0xffc2,4,2,CSR+0x400,0,0,4,1)
             reply=await send(0x100,10,timeout);self.assertEqual(int.from_bytes(reply[16:20],'little'),6)
+            self.assertNotEqual(ctx.get(dut.quarantined_labels),0)
+            # All64 labels can be retired; reject rather than alias a late reply.
+            for cookie in range(100,163):
+                reply=await send(0x100,cookie,timeout)
+                self.assertEqual(int.from_bytes(reply[16:20],'little'),6)
+            self.assertEqual(ctx.get(dut.quarantined_labels),(1<<64)-1)
+            reply=await send(0x100,163,payload);self.assertEqual(int.from_bytes(reply[16:20],'little'),3)
             ctx.set(dut.session_reset,1);await ctx.tick();ctx.set(dut.session_reset,0)
+            self.assertEqual(ctx.get(dut.quarantined_labels),(1<<64)-1)
             info=await send(3,11);self.assertEqual(info[24:26],struct.pack('<H',0xffc0))
             ctx.set(dut.epoch_reset,1);await ctx.tick();ctx.set(dut.epoch_reset,0)
             for _ in range(60):await ctx.tick()
-            self.assertFalse(ctx.get(dut.ready));self.assertEqual(ctx.get(dut.generation),3)
+            self.assertFalse(ctx.get(dut.ready));self.assertEqual(ctx.get(dut.generation),3);self.assertEqual(ctx.get(dut.quarantined_labels),0)
             self.assertTrue(any(f[5]==2 and int.from_bytes(f[6:8],'little')==0x8000 and int.from_bytes(f[20:24],'little')==3 for f in output))
         sim.add_testbench(monitor,background=True);sim.add_testbench(phy,background=True);sim.add_testbench(bench);sim.run()
+
+    def test_native_topology_rejects_missing_duplicate_and_root_mismatch(self):
+        bus=Bus([(0,1)],nodes=2,root=1);bus.reset();bus.run()
+        packets=[v for _,k,v in bus.received[0] if k=='selfid']
+        dut=RawWorker();sim=Simulator(dut);sim.add_clock(1/49_152_000)
+        async def bench(ctx):
+            ctx.set(dut.out_ready,1)
+            for vectors,status,expected in [(packets,0,True),(packets[1:],0,False),(packets+packets[-1:],0,False),(packets,2,False)]:
+                ctx.set(dut.epoch_reset,1);await ctx.tick();ctx.set(dut.epoch_reset,0)
+                for packet in vectors:
+                    for ctl,data in receive_samples(packet,speed=0):ctx.set(dut.link.phy.ctl_in,ctl);ctx.set(dut.link.phy.data_in,data);await ctx.tick()
+                    ctx.set(dut.link.phy.ctl_in,0);await ctx.tick().repeat(4)
+                for shift in range(14,-1,-2):ctx.set(dut.link.phy.ctl_in,1);ctx.set(dut.link.phy.data_in,((status>>shift)&3)<<6);await ctx.tick()
+                ctx.set(dut.link.phy.ctl_in,0);await ctx.tick().repeat(5)
+                self.assertEqual(bool(ctx.get(dut.ready)),expected)
+        sim.add_testbench(bench);sim.run()
