@@ -336,6 +336,22 @@ stereo48k profiles require runtime slot-map/firmware binding. See
 Rust estimator and HDL audio endpoints are separate components: native-to-UAC2
 sample/control integration and token-level/OS validation remain unimplemented.
 
+## L host compatibility boundary
+
+Independent Rust libraw1394 ABI subset now uses FW2R for synchronous reads/writes,
+CAS32/64, IRM resource reservation and ISO receive/reset callbacks. A concurrent
+IRM compare-mismatch test verifies bounded retry without retrying transport errors.
+C ABI handle/error smoke and mock-transport callback tests pass. The full pinned
+FFADO source API audit and missing surface are in
+[shim README](../host/libraw1394-shim/README.md). No FFADO streaming claim: pollable
+reactor, FCP/ARM, rawTX and clock snapshots are still absent.
+
+The CoreAudio public-SDK vtable skeleton builds and passes factory/COM/property/
+IO-rejection tests on macOS. It publishes zero devices. Its
+[design](../host/coreaudio/README.md) specifies daemon/rings/clock epochs and
+realtime constraints; actual audio driver/daemon implementation is outside this
+skeleton. CI checks both C ABI and macOS bundle build. No HAL installation occurred.
+
 ### Independent review R23-1 recovery policy
 
 A timed-out SEND or USB-session abort with a pending/active PHY operation starts
