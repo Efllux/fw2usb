@@ -785,7 +785,7 @@ mod tests {
         }
         unsafe {
             let mut events = std::collections::VecDeque::new();
-            for seq in [0u32, 2, 3] {
+            for seq in [0u32, 2, 3, u32::MAX, 0] {
                 let mut payload = vec![0; 36];
                 payload[..4].copy_from_slice(&7u32.to_le_bytes());
                 payload[4..8].copy_from_slice(&1u32.to_le_bytes());
@@ -812,6 +812,14 @@ mod tests {
                 0,
                 "one lost packet must not poison all later sequence numbers"
             );
+            raw1394_iso_stop(h);
+            assert_eq!(raw1394_iso_recv_start(h, -1, -1, 0), 0);
+            assert_eq!(
+                raw1394_loop_iterate(h),
+                0,
+                "new lease accepts fresh sequence baseline"
+            );
+            assert_eq!(raw1394_loop_iterate(h), 0, "sequence wraps MAX to zero");
             raw1394_destroy_handle(h);
         }
     }
