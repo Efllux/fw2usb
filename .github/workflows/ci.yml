@@ -46,6 +46,10 @@ jobs:
       - run: python gateware/build.py --core ack
       - run: python gateware/build.py --core cycle_master
       - run: python gateware/build.py --core link_layer
+      - run: python gateware/build.py --core csr
+      - run: python gateware/build.py --core rom_reader
+      - run: python gateware/build.py --core transaction
+      - run: python gateware/build.py --core transaction_link
       - run: python gateware/build.py --route
       - uses: actions/upload-artifact@v4
         with:

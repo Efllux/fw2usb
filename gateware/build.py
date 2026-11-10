@@ -13,12 +13,15 @@ from fw2usb.link import Crc32, CycleTimer, SelfIdCapture, AckDecision
 from fw2usb.packet import PacketReceiver, PacketTransmitter
 from fw2usb.cycle_master import CycleMaster
 from fw2usb.link_layer import LinkLayer
+from fw2usb.transaction import CsrBank, RomReader
+from fw2usb.responder import TransactionResponder
+from fw2usb.transaction_link import TransactionLink
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--route', action='store_true')
-    parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive', 'transmit', 'phy_link', 'crc32', 'cycle', 'selfid', 'packet_rx', 'packet_tx', 'ack', 'cycle_master', 'link_layer'], default='smoke')
+    parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive', 'transmit', 'phy_link', 'crc32', 'cycle', 'selfid', 'packet_rx', 'packet_tx', 'ack', 'cycle_master', 'link_layer', 'csr', 'rom_reader', 'transaction', 'transaction_link'], default='smoke')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
     out = root / 'build'
@@ -27,12 +30,19 @@ def main():
         parser.error('only the safe smoke image has board IO constraints')
     constructors = {'smoke': Heartbeat, 'lreq': LreqSerializer,
                     'status': StatusReceiver, 'receive': ReceiveAdapter, 'transmit': TransmitAdapter, 'phy_link': PhyLink, 'crc32': Crc32, 'cycle': CycleTimer, 'selfid': SelfIdCapture, 'packet_rx': PacketReceiver, 'packet_tx': PacketTransmitter,
-                    'ack': AckDecision, 'cycle_master': CycleMaster, 'link_layer': LinkLayer}
+                    'ack': AckDecision, 'cycle_master': CycleMaster, 'link_layer': LinkLayer, 'csr': CsrBank, 'rom_reader': RomReader, 'transaction': TransactionResponder, 'transaction_link': TransactionLink}
     port_names = {
         'packet_rx': ['start', 'valid', 'byte', 'end', 'phy_error', 'good', 'bad', 'header_good', 'tcode', 'length'],
         'packet_tx': ['start', 'has_data', 'valid', 'ready', 'byte', 'header_last', 'data_last',
                       'out_valid', 'out_ready', 'out_byte', 'out_last', 'busy'],
         'ack': ['end', 'addressed', 'broadcast', 'header_good', 'data_good', 'capacity', 'tcode', 'valid', 'byte'],
+        'csr': ['valid', 'ready', 'address', 'write', 'compare_swap', 'compare', 'data',
+                'response_valid', 'response_ready', 'response_data', 'rcode', 'bus_reset', 'cycle_time'],
+        'rom_reader': ['start', 'bus_reset', 'local_node', 'remote_node', 'tx_valid', 'tx_ready', 'tx_byte',
+                       'tx_last', 'response_valid', 'response_source', 'response_label', 'response_data',
+                       'response_rcode', 'done', 'error', 'busy', 'length', 'read_index', 'read_data'],
+        'transaction_link': [],
+        'transaction': ['node_id', 'bus_reset', 'tx_valid', 'tx_ready', 'tx_byte', 'tx_last', 'busy', 'dropped'],
         'link_layer': ['selfid_phase', 'tx_valid', 'tx_ready', 'tx_byte', 'tx_last'],
         'cycle_master': ['node_id', 'grant', 'request', 'valid', 'ready', 'byte', 'last'],
         'crc32': ['clear', 'valid', 'byte', 'value', 'raw'],
@@ -53,6 +63,13 @@ def main():
     }
     dut = constructors[args.core]()
     ports = [getattr(dut, name) for name in port_names[args.core]]
+    if args.core == 'transaction_link':
+        ports.extend(getattr(dut.link.phy, name) for name in ['enable', 'bus_reset', 'ctl_in', 'data_in', 'ctl_out', 'data_out', 'oe', 'lreq'])
+        ports.extend([dut.link.cycle.node_id, dut.link.selfid_phase])
+        ports.extend(getattr(dut.link.cycle.timer, name) for name in ['root', 'enable', 'load', 'load_value', 'value'])
+    if args.core == 'transaction':
+        ports.extend(getattr(dut.rx, name) for name in ['start', 'valid', 'byte', 'end', 'phy_error'])
+        ports.append(dut.csr.cycle_time)
     if args.core == 'link_layer':
         for interface, names in [(dut.phy, ['enable', 'bus_reset', 'ctl_in', 'data_in', 'ctl_out', 'data_out', 'oe', 'lreq']),
                                  (dut.request, ['valid', 'ready', 'kind', 'speed', 'address', 'data', 'accel']),

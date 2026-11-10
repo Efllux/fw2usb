@@ -237,3 +237,22 @@ and CRC failure cancellation. Self-ID phase and local node/root state are suppli
 by controller policy; Rust derives topology. Busy ACK retry/timeout state, full
 transaction scheduling and cable response-deadline verification remain residual
 integration work rather than claims of full normative conformance.
+
+## H transaction implementation
+
+Choice: bounded gateware, no soft CPU. CSR/IRM atomic CAS32, CSR quadlet/block
+read/write, synthetic config ROM and CRC-framed responses have a directly tested
+finite resource surface. TransactionResponder is one-request/64-quadlet capacity;
+arrivals while busy increment dropped. Block writes commit one quadlet at a time;
+a later error reports failure without inventing rollback. Production RX buffering/
+credits still need integration. TransactionLink joins PHY pins, ACK scheduling,
+CSR engine and response TX; a pin-level test reads the ROM header end to end.
+
+RomReader emits actual quadlet-read wire packets, matches source/label/rcode and
+bounds timeout/capacity; a bus-model test reads all bus-info/root-directory words
+of a remote BeBoB fixture. Nested unit-directory/leaf traversal and ROM CRC16
+validation remain controller work. Local ROM identity is synthetic, not a claimed
+registered production GUID. Controller/node/phase startup policy remains external.
+The zero-wait grant test exposed an ACK pipeline delay, now fixed by forwarding
+new ACK data before its retention latch. New bus requests are held until active
+PHY TX ends so a queued request cannot switch the active packet source mid-frame.
