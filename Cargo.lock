@@ -99,6 +99,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fw2usb-raw1394"
+version = "0.1.0"
+dependencies = [
+ "fw-phy-model",
+ "fw2usb-cli",
+ "libc",
+]
+
+[[package]]
 name = "io-kit-sys"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -16,6 +16,11 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --all
+      - name: libraw1394 C ABI smoke
+        run: |
+          cargo build -p fw2usb-raw1394
+          cc -std=c11 -Wall -Wextra -Werror -I host/libraw1394-shim/include host/libraw1394-shim/tests/abi.c -L target/debug -lfw2usb_raw1394 -o target/raw1394-abi
+          LD_LIBRARY_PATH=target/debug target/raw1394-abi
       - name: no_std cross-build (firmware target)
         run: cargo build -p fw-clock -p fw-amdtp -p fw-phy-model -p fw-1394 --lib --target thumbv7em-none-eabihf
 
@@ -69,3 +74,9 @@ jobs:
         with:
           name: gateware-smoke
           path: gateware/build/
+
+  coreaudio:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make -C host/coreaudio check
