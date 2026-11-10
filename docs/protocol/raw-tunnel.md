@@ -97,3 +97,11 @@ credit mode; no missing CREDIT transaction is synthesized by the replay backend.
 Capture arms on the first successful credit grant. Packets before that start boundary
 are outside the lease observation window. Once armed, credit exhaustion remains
 observable as LOSS until destroy/reset; it never silently disarms the capture.
+
+Timeout recovery: a stranded PHY operation triggers register1 read and IBR long
+reset with preserved RHB/gap63. Recovery waits for actual PHY reset status and
+self-ID, then exposes the new generation. Bus-info flag bit3=recovery active,
+bit4=failed. A100ms SCLK policy deadline fails closed if PHY status never arrives.
+SUBMIT returns BUSY while recovering and IO after failure; no uncertain write is
+replayed. An external native reset clears failed recovery. This does not detect
+loss of SCLK itself; independent board clock monitoring remains required.

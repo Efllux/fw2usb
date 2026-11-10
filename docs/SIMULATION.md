@@ -423,3 +423,20 @@ packed timer validation,128-second wrap,64-second horizon and conservative
 serialization margin (bridge policy, not a normative IEEE constant). Packet-source
 synthesis/check passes. These components are not yet connected to native TX leases,
 arbitration or grant-time deadline rejection; raw TX remains unsupported.
+
+### Independent review R23-1 recovery policy
+
+A timed-out SEND or USB-session abort with a pending/active PHY operation starts
+bounded recovery, not a local pending-bit clear. Recovery reads PHY register1,
+preserves RHB, then writes RHB|IBR|63. Only observed native reset clears recovery;
+missing PHY response fails closed after100ms of SCLK. Bus-info flags3/4 expose
+recovery active/failed; new SUBMITs return BUSY during recovery or IO after failure.
+A real reset increments generation and requires fresh self-ID before new traffic.
+Register requests bypass cycle-start arbitration priority so a stranded bus request
+cannot prevent recovery register access. Tests withhold grants, supply real LREQ
+register responses/IBR side effects, delay self-ID through reset, and verify a
+subsequent valid transaction, including late grant and USB session reset cases.
+The timeout remains an uncertain result for any write that reached the wire.
+
+Source: [TI SLLS424G register1 and reset guidance, printed pp23/30](https://www.ti.com.cn/cn/lit/gpn/TSB41AB2).
+The100ms failure deadline is bridge policy, not a normative PHY timing limit.
