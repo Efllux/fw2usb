@@ -1,0 +1,84 @@
+(footprint "Header2"
+	(version 20240108)
+	(generator "pcbnew")
+	(generator_version "8.0")
+	(layer "F.Cu")
+	(property "Reference" "J3"
+		(at 0 0 0)
+		(layer "F.SilkS")
+		(hide yes)
+		(uuid "bc755a1b-cc08-4430-b08e-2ffd6ea82672")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "BENCH_3V3"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "f2c0fed2-92a2-4ed4-94b5-5b841cd7e3fd")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Footprint" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "1ef67595-b1b5-4670-9f1a-5bdf77240a0e")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "402a16ce-c4bf-4ee2-9921-df8294d0d38f")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "8bb96065-817e-4335-8674-0a1d607ce88f")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" thru_hole oval
+		(at 0 0)
+		(size 1.7 1.7)
+		(drill 1)
+		(layers "*.Mask" "F.Cu" "In1.Cu" "In2.Cu" "B.Cu")
+		(remove_unused_layers no)
+		(thermal_bridge_angle 45)
+		(uuid "aecae37a-ff5a-41a1-b845-8aa3829eaee2")
+	)
+	(pad "2" thru_hole oval
+		(at 0 2.54)
+		(size 1.7 1.7)
+		(drill 1)
+		(layers "*.Mask" "F.Cu" "In1.Cu" "In2.Cu" "B.Cu")
+		(remove_unused_layers no)
+		(thermal_bridge_angle 45)
+		(uuid "6265f0a4-e231-4a12-b647-d442d83d7c97")
+	)
+)
