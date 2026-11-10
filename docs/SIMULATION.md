@@ -323,3 +323,15 @@ raw ISO TX/deadlines, label quarantine after timeout and token-level USB co-sim.
 These are software/verification gaps, not hardware-only blockers. The native worker
 pin test and transcript WAV test exercise different integration boundaries; no
 claim that the WAV test currently enumerates LUNA or executes the native worker.
+
+## K clock/UAC2 component validation
+
+no_std fw-clock tests cover SYT wrap, independent bus/USB/audio drift, bounded
+jitter, frequency-step FIFO displacement, clock loss, feedback quantization and
+MCLK NCO phase. LUNA audio descriptors/control/alt gates/packet-atomic underflow
+have HDL tests; standalone audio USB core synthesizes/checks (1564 LUT4,2DP16KD
+at this checkpoint; no placement/timing claim). FIREBOX and Konnekt6 conservative
+stereo48k profiles require runtime slot-map/firmware binding. See
+[audio design and exact residuals](audio/CLOCK-UAC2.md).73 gateware tests pass.
+Rust estimator and HDL audio endpoints are separate components: native-to-UAC2
+sample/control integration and token-level/OS validation remain unimplemented.

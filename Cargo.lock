@@ -82,6 +82,10 @@ name = "fw-amdtp"
 version = "0.1.0"
 
 [[package]]
+name = "fw-clock"
+version = "0.1.0"
+
+[[package]]
 name = "fw-phy-model"
 version = "0.1.0"
 
