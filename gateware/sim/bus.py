@@ -19,6 +19,14 @@ class Frame:
     epoch: int
 
 
+@dataclass(frozen=True)
+class Reservation:
+    source: int
+    speed: int
+    start_ns: Fraction
+    epoch: int
+
+
 class Bus:
     def __init__(self, edges, *, nodes, root=0, propagation_ns=25, gap_count=63):
         if nodes < 1 or nodes > 63 or not 0 <= root < nodes or not 0 <= gap_count <= 63:
@@ -49,6 +57,8 @@ class Bus:
         self.received = [[] for _ in range(nodes)]
         self.trace = []
         self.pending = {}
+        self.reservation_callbacks = {}
+        self.reserved = None
         self.served = set()
         self.ready = False
         self.busy_until = Fraction(0)
@@ -98,6 +108,8 @@ class Bus:
         self.epoch += 1
         self.ready = False
         self.pending.clear()
+        self.reservation_callbacks.clear()
+        self.reserved = None
         self.served.clear()
         self.arbitrating = False
         self.trace.append((self.now, 'reset', self.epoch))
@@ -139,8 +151,40 @@ class Bus:
         self._arbitrate()
         return True
 
+    def reserve(self,node,*,kind='fair',speed=2,granted):
+        """Reserve cable ownership before LLC has streamed the packet bytes.
+
+        Completion time comes from the PHY-LINK observer, avoiding a second
+        modeled wire duration after serialization. PHY/cable pipeline skew is
+        still an explicit uncalibrated boundary, not a normative timing claim.
+        """
+        if node not in self.ids or kind not in ('fair','priority','iso','immediate') or speed not in (0,1,2):
+            raise ValueError('invalid reservation')
+        if node in self.pending or (self.reserved and self.reserved.source==node):return False
+        self.reservation_callbacks[node]=granted;self.pending[node]=(None,kind,speed);self._arbitrate();return True
+
+    def cancel_reservation(self,node):
+        if node not in self.reservation_callbacks:return False
+        del self.reservation_callbacks[node];del self.pending[node];return True
+
+    def complete_reservation(self,token,data):
+        if self.reserved is not token or token.epoch!=self.epoch:return False
+        self.reserved=None;data=bytes(data)
+        if not data:
+            self.trace.append((self.now,'cancel_grant',token));self.busy_until=self.now;self._arbitrate();return True
+        frame=Frame(token.source,data,token.speed,token.start_ns,self.now,self.epoch)
+        self.trace.append((token.start_ns,'transmit',frame))
+        for receiver in range(self.nodes):
+            if receiver!=token.source:
+                self.schedule(self.now+self._distance(token.source,receiver)*self.propagation_ns,
+                              lambda r=receiver:self._deliver(r,'packet',frame))
+        self.busy_until=self.now+max(self._distance(token.source,r) for r in range(self.nodes))*self.propagation_ns
+        def finished():
+            self._deliver(token.source,'transmitted',frame);self._arbitrate()
+        self.schedule(self.busy_until,finished);return True
+
     def _arbitrate(self):
-        if not self.ready or self.arbitrating or not self.pending:
+        if not self.ready or self.arbitrating or self.reserved is not None or not self.pending:
             return
         self.arbitrating = True
         # Nominal subaction detect + originating arbitration delay. Reset-gap
@@ -155,6 +199,7 @@ class Bus:
             if reset_gap:
                 self.served.clear()
                 self.trace.append((self.now, 'fairness_reset', self.epoch))
+            if not self.pending:return
             rank = {'immediate': 0, 'priority': 1, 'iso': 2, 'fair': 3}
             eligible = [n for n, (_, k, _) in self.pending.items() if k != 'fair' or n not in self.served]
             if not eligible:
@@ -164,6 +209,11 @@ class Bus:
             data, kind, speed = self.pending.pop(node)
             if kind == 'fair':
                 self.served.add(node)
+            if data is None:
+                self.reserved=Reservation(node,speed,self.now,self.epoch)
+                self.trace.append((self.now,'grant',self.reserved))
+                self.reservation_callbacks.pop(node)(self.reserved)
+                return
             end = self.now + 180 + Fraction(len(data)*8*1_000_000_000, 98_304_000 << speed) + 250
             frame = Frame(node, data, speed, self.now, end, self.epoch)
             self.trace.append((self.now, 'transmit', frame))

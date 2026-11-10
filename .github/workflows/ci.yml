@@ -65,6 +65,9 @@ jobs:
       - run: python gateware/build.py --core frame_encoder
       - run: python gateware/build.py --core frame_decoder
       - run: PYTHONPATH=gateware python gateware/sim/cosim.py --cycles 8
+      - run: PYTHONPATH=gateware python gateware/sim/native_cosim.py --cycles 8 --family bebob
+      - run: PYTHONPATH=gateware python gateware/sim/native_cosim.py --cycles 8 --family dice
+      - run: PYTHONPATH=gateware python gateware/sim/native_cosim.py --cycles 8 --fault crc
       - run: python gateware/build.py --core async_request
       - run: python gateware/build.py --core raw_worker
       - run: python gateware/build.py --core usb_audio

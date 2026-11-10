@@ -17,8 +17,10 @@ class LinkLayer(Elaboratable):
         self.selfid = SelfIdCapture()
         self.cycle = CycleMaster()
         self.selfid_phase = Signal()
+        self.capacity = Signal(init=1)
         self.request = SimpleNamespace(valid=Signal(),ready=Signal(),kind=Signal(3),speed=Signal(3),
                                        address=Signal(4),data=Signal(8),accel=Signal())
+        self.user_grant = Signal()
         self.tx_valid = Signal()
         self.tx_ready = Signal()
         self.tx_byte = Signal(8)
@@ -43,7 +45,7 @@ class LinkLayer(Elaboratable):
             ack.addressed.eq(self.packet.destination == self.cycle.node_id),
             ack.broadcast.eq(self.packet.destination[:6] == 63),
             ack.header_good.eq(self.packet.header_good), ack.data_good.eq(self.packet.good),
-            ack.tcode.eq(self.packet.tcode)]
+            ack.tcode.eq(self.packet.tcode),ack.capacity.eq(self.capacity)]
         with m.If(self.packet.header_decoded & (self.packet.destination == self.cycle.node_id) &
                   (self.packet.destination[:6] != 63) & (self.packet.tcode != 8) & (self.packet.tcode != 10)):
             m.d.sync += ack_wanted.eq(1)
@@ -67,6 +69,7 @@ class LinkLayer(Elaboratable):
                      self.phy.tx.byte.eq(Mux(ack_owned,Mux(ack.valid,ack.byte,ack_byte),Mux(cycle_owned,self.cycle.byte,self.tx_byte))),
                      self.phy.tx.last.eq(Mux(ack_owned,1,Mux(cycle_owned,self.cycle.last,self.tx_last))),
                      self.tx_ready.eq(self.phy.tx.ready & ~cycle_owned & ~ack_owned),
+                     self.user_grant.eq(self.phy.tx.grant & ~cycle_owned & ~ack_owned),
                      self.phy.tx.allow_hold.eq(~ack_owned),
                      self.packet.start.eq(self.phy.rx.start & ~self.selfid_phase),
                      self.packet.valid.eq(self.phy.rx.valid & ~self.selfid_phase),

@@ -36,6 +36,7 @@ fn wav(path: &str, rate: u32, channels: u16, pcm: &[u8]) -> Result<()> {
 fn run() -> Result<()> {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     let mut replay = None;
+    let mut socket = None;
     let mut serial = None;
     let mut generation = 0u32;
     let mut explicit_generation = false;
@@ -47,6 +48,7 @@ fn run() -> Result<()> {
         let value = args.remove(0);
         match key.as_str() {
             "--replay" => replay = Some(value),
+            "--socket" => socket = Some(value),
             "--serial" => serial = Some(value),
             "--generation" => {
                 generation = value.parse()?;
@@ -64,7 +66,19 @@ fn run() -> Result<()> {
         }
         return Usb::list();
     }
-    let transport: Box<dyn Transport> = if let Some(path) = replay {
+    if socket.is_some() && (replay.is_some() || serial.is_some()) {
+        return Err("choose one transport".into());
+    }
+    let transport: Box<dyn Transport> = if let Some(path) = socket {
+        #[cfg(unix)]
+        {
+            Box::new(fw2usb_cli::transport::Loopback::open(&path)?)
+        }
+        #[cfg(not(unix))]
+        {
+            return Err("Unix socket loopback requires Unix".into());
+        }
+    } else if let Some(path) = replay {
         Box::new(Replay::open(&path)?)
     } else {
         Box::new(Usb::open(serial.as_deref())?)
@@ -80,6 +94,14 @@ fn run() -> Result<()> {
         "self-id"=>{let data=session.call(4,Vec::new())?;if !data.len().is_multiple_of(8){return Err("malformed self-ID dump".into());}for pair in data.as_chunks::<8>().0{let a=u32::from_be_bytes(pair[..4].try_into()?);let b=u32::from_be_bytes(pair[4..].try_into()?);if a!=!b{return Err("bad self-ID inverse".into());}println!("{a:08x} {b:08x}");}},
         "read"=>{let data=session.read(u16::try_from(number(arg(1)?)?)?,number(arg(2)?)?,4)?;println!("0x{:08x}",u32::from_be_bytes(data.try_into().map_err(|_|"short quadlet")?));},
         "write"=>{session.submit(u16::try_from(number(arg(1)?)?)?,number(arg(2)?)?,0,&u32::try_from(number(arg(3)?)?)?.to_be_bytes(),4)?;},
+        "cas"=>{
+            let node=u16::try_from(number(arg(1)?)?)?;let address=number(arg(2)?)?;
+            let compare=number(arg(3)?)?;let replacement=number(arg(4)?)?;
+            let bits=args.get(5).map(|s|number(s)).transpose()?.unwrap_or(32);
+            let (a,b)=match bits {32=>(u32::try_from(compare)?.to_be_bytes().to_vec(),u32::try_from(replacement)?.to_be_bytes().to_vec()),64=>(compare.to_be_bytes().to_vec(),replacement.to_be_bytes().to_vec()),_=>return Err("CAS width must be32 or64".into())};
+            let old=session.compare_swap(node,address,&a,&b)?;println!("{}",old.iter().map(|b|format!("{b:02x}")).collect::<String>());
+            if old!=a{return Err("compare mismatch".into());}
+        },
         "config-rom"=>{
             let node=u16::try_from(number(arg(1)?)?)?;let header=session.read(node,0xfffff0000400,4)?;
             let initial=(header[0] as u32+2)*4;if initial>4096{return Err("ROM bound exceeded".into());}

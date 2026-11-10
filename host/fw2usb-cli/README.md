@@ -37,3 +37,10 @@ Do not infer a working physical adapter from the replay result.
 Credit-mode leases prefill32 packets/8192 record bytes and return credits in bounded
 batches after consumption. Recording aborts on reset/loss and destroys its lease;
 no FireWire write is automatically retried after a transport error.
+
+Live no-hardware path (Unix): `--socket PATH` connects to the RTL simulation peer.
+`PYTHONPATH=gateware .venv/bin/python gateware/sim/native_cosim.py --family dice --cycles 8`
+runs the actual CLI against native RTL commands, not replay completions. Add
+`--fault crc` for loss rejection. `cas NODE ADDRESS COMPARE REPLACEMENT [32|64]`
+performs one compare-swap and fails on mismatch; it never retries the write.
+Native report files distinguish byte-port simulation from USB token validation.
