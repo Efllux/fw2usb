@@ -52,7 +52,7 @@ def main():
                        'tx_last', 'response_valid', 'response_source', 'response_label', 'response_data',
                        'response_rcode', 'done', 'error', 'busy', 'length', 'read_index', 'read_data'],
         'async_request': ['start','destination','source','label','tcode','address','length','extended','quadlet','data_index','data_byte','valid','ready','byte','last'],
-        'raw_worker': ['epoch_reset','session_reset','cycle_master_enable','generation','local_node','node_count','ready','iso_enabled','iso_handle','iso_channel','iso_losses','iso_cost','iso_consume','iso_admit','iso_packet_credits','iso_byte_credits','iso_maximum','monotonic_ticks','out_valid','out_ready','out_byte','out_last'],
+        'raw_worker': ['epoch_reset','session_reset','cycle_master_enable','generation','local_node','node_count','ready','iso_enabled','iso_armed','iso_handle','iso_channel','iso_losses','iso_cost','iso_consume','iso_admit','iso_packet_credits','iso_byte_credits','iso_maximum','monotonic_ticks','out_valid','out_ready','out_byte','out_last'],
         'usb_bridge': [],
         'raw_iso': ['generation','handle','cycle_time','ticks','bulk_valid','bulk_ready','bulk_byte','bulk_last','sequence'],
         'frame_encoder': ['start','kind','opcode','id','status','generation','length','valid','ready','byte','out_valid','out_ready','out_byte','out_last','busy','error'],

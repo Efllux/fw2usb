@@ -22,7 +22,7 @@ class RawWorker(Elaboratable):
         self.local_node=Signal(16,init=0xffff)
         self.node_count=Signal(7)
         self.ready=Signal()
-        self.iso_enabled=Signal()
+        self.iso_enabled=Signal();self.iso_armed=Signal()
         self.iso_handle=Signal(32)
         self.monotonic_ticks=Signal(64)
         self.iso_channel=Signal(6)
@@ -182,7 +182,9 @@ class RawWorker(Elaboratable):
                           (packets==0)|(bytes_==0)|(packets>32)|(bytes_>8192)|
                           (self.iso_packet_credits+packets>32)|(self.iso_byte_credits+bytes_>8192)):
                     m.d.sync += response_status.eq(1)
-                with m.Else():m.d.comb += [grant.eq(1),grant_packets.eq(packets),grant_bytes.eq(bytes_)]
+                with m.Else():
+                    m.d.comb += [grant.eq(1),grant_packets.eq(packets),grant_bytes.eq(bytes_)]
+                    m.d.sync += self.iso_armed.eq(1)
                 m.next='REPLY'
             with m.State('PARSE_DESTROY'):
                 m.d.comb += self.command.read_index.eq(parse_index)
@@ -246,5 +248,5 @@ class RawWorker(Elaboratable):
         with m.If(self.session_reset):
             m.d.sync += [fsm.state.eq(fsm.encoding['IDLE']),self.iso_enabled.eq(0),reset_pending.eq(0),loss_pending.eq(0)]
         with m.If(new_lease | reset | self.session_reset | ~self.iso_enabled):
-            m.d.sync += [self.iso_packet_credits.eq(0),self.iso_byte_credits.eq(0)]
+            m.d.sync += [self.iso_packet_credits.eq(0),self.iso_byte_credits.eq(0),self.iso_armed.eq(0)]
         return m

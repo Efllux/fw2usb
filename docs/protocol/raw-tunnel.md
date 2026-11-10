@@ -93,3 +93,7 @@ bits0–2 retain the initial development command/RX subset. Returned ring1 descr
 retained PHY packet RAM, not the output FIFO/host-credit budget. Raw TX remains
 unsupported. Older short ISO_CREATE responses are accepted by host replay without
 credit mode; no missing CREDIT transaction is synthesized by the replay backend.
+
+Capture arms on the first successful credit grant. Packets before that start boundary
+are outside the lease observation window. Once armed, credit exhaustion remains
+observable as LOSS until destroy/reset; it never silently disarms the capture.

@@ -30,7 +30,7 @@ class RawUsbBridge(Elaboratable):
         m.submodules.outgoing=ResetInserter({'sync':reset_crossing.o})(outgoing)
         m.d.comb += [incoming.w_data.eq(self.usb.out_byte),incoming.w_en.eq(self.usb.out_valid),self.usb.out_ready.eq(incoming.w_rdy),
                      self.worker.command.valid.eq(incoming.r_rdy),self.worker.command.byte.eq(incoming.r_data),incoming.r_en.eq(self.worker.command.ready),
-                     self.audio.iso.rx.start.eq(self.worker.link.phy.rx.start & self.worker.iso_enabled & ~self.worker.link.selfid_phase),
+                     self.audio.iso.rx.start.eq(self.worker.link.phy.rx.start & self.worker.iso_enabled & self.worker.iso_armed & ~self.worker.link.selfid_phase),
                      self.audio.iso.rx.valid.eq(self.worker.link.phy.rx.valid),self.audio.iso.rx.byte.eq(self.worker.link.phy.rx.byte),
                      self.audio.iso.rx.end.eq(self.worker.link.phy.rx.end),self.audio.iso.rx.phy_error.eq(self.worker.link.phy.rx.error),
                      self.audio.iso.channel.eq(self.worker.iso_channel),self.audio.handle.eq(self.worker.iso_handle),
