@@ -77,3 +77,11 @@ Generation0 is discovery-only for bus-info; other operations require the current
 generation. Session reset discards framing state and leases; native reset reports
 RESET without splitting a USB record. Explicit CREDIT, raw TX and incoming async
 leases are still unimplemented and must not be inferred from capability7.
+
+Timeout recovery: a stranded PHY operation triggers register1 read and IBR long
+reset with preserved RHB/gap63. Recovery waits for actual PHY reset status and
+self-ID, then exposes the new generation. Bus-info flag bit3=recovery active,
+bit4=failed. A100ms SCLK policy deadline fails closed if PHY status never arrives.
+SUBMIT returns BUSY while recovering and IO after failure; no uncertain write is
+replayed. An external native reset clears failed recovery. This does not detect
+loss of SCLK itself; independent board clock monitoring remains required.
