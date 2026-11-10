@@ -122,7 +122,7 @@ pub fn read_quadlet(
         offset as u32,
     ];
     let mut header = [0u8; 12];
-    for (chunk, word) in header.chunks_exact_mut(4).zip(words) {
+    for (chunk, word) in header.as_chunks_mut::<4>().0.iter_mut().zip(words) {
         chunk.copy_from_slice(&word.to_be_bytes());
     }
     header_packet(&header, out)
