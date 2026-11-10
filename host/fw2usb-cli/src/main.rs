@@ -113,6 +113,22 @@ fn run() -> Result<()> {
             fw_1394::validate_root_rom(&rom).map_err(|_|"invalid config ROM CRC/bounds")?;
             if let Some(path)=args.get(2){std::fs::write(path,&rom)?;}else{println!("{}",rom.iter().map(|b|format!("{b:02x}")).collect::<String>());}
         },
+        "iso-send"=>{
+            let channel=u8::try_from(number(arg(1)?)?)?;let hex=arg(2)?;
+            if !hex.is_ascii() || !hex.len().is_multiple_of(2) || hex.len()>512 {return Err("ISO payload must be hex, maximum256 bytes".into());}
+            let data=(0..hex.len()).step_by(2).map(|i|u8::from_str_radix(&hex[i..i+2],16)).collect::<std::result::Result<Vec<_>,_>>()?;
+            let lead=args.get(3).map(|s|number(s)).transpose()?.unwrap_or(8);
+            if lead==0 || lead>8000 {return Err("lead must be1..8000 cycles".into());}
+            let handle=session.iso_tx_create(channel,2,256)?;
+            let result=(|| -> Result<()> {
+                let (now,_)=session.clock_snapshot()?;
+                let cycle=(((now>>25) as u64*8000+((now>>12)&8191) as u64+lead)%1_024_000) as u32;
+                let target=((cycle/8000)<<25)|((cycle%8000)<<12);
+                session.iso_send(handle,channel,1,0,target,&data)
+            })();
+            let cleanup=session.call(0x202,handle.to_le_bytes().to_vec());
+            result?;cleanup?;
+        },
         "record"=>{
             let channel=u8::try_from(number(arg(1)?)?)?;if channel>63{return Err("channel out of range".into());}
             let path=arg(2)?;let rate=u32::try_from(number(arg(3)?)?)?;let channels=u16::try_from(number(arg(4)?)?)?;

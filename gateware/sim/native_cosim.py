@@ -186,6 +186,12 @@ def run(output,*,cycles=16,family='bebob',fault=None):
             rom=output/f'{family}.rom';await command(['config-rom',node,str(rom)])
             if rom.read_bytes()!=device.rom:raise AssertionError('native ROM read differs')
             if not state['mixed_sent'] or remote_client.pending or remote_client.completed[-1][1:]!=(0,rom_words()[0].to_bytes(4,'big')):raise AssertionError('concurrent local CSR/remote ROM transaction failed')
+            tx_payload=bytes.fromhex('000200000002ffff4001020340fedcba')
+            await command(['iso-send','7',tx_payload.hex(),'2'])
+            tx_header=((len(tx_payload)<<16)|(1<<14)|(7<<8)|0xa0).to_bytes(4,'big')
+            tx_expected=tx_header+crc(tx_header).to_bytes(4,'big')+tx_payload+crc(tx_payload).to_bytes(4,'big')
+            if wire_tx.count(tx_expected)!=1:raise AssertionError('native CLI ISO TX missing/duplicated/corrupt')
+            if ctx.get(worker.iso_enabled):raise AssertionError('CLI leaked TX lease')
             if family=='bebob':
                 for offset in [0x904,0x984]:
                     old=int.from_bytes(device.read(CSR+offset),'big');new=old|(1<<24)|(3<<16)
@@ -213,7 +219,7 @@ def run(output,*,cycles=16,family='bebob',fault=None):
             for tx in cycle_starts:
                 if crc(tx[:-4]).to_bytes(4,'big')!=tx[-4:] or tx[8:12]!=bytes.fromhex('f0000200'):raise AssertionError('bad native cycle-start')
             state['report']=dict(family=family,cycles=cycles,frames=frames,generation=generation,commands=commands,
-                                 native_tx_packets=len(wire_tx),root_cycle_starts=len(cycle_starts),local_csr_service=True,concurrent_master_service=True,usb_records=len(records),wav_sha256=hashlib.sha256(wav_path.read_bytes()).hexdigest() if not fault else None,pcm_bit_exact=not fault,fault_rejected=bool(fault))
+                                 native_tx_packets=len(wire_tx),root_cycle_starts=len(cycle_starts),local_csr_service=True,concurrent_master_service=True,raw_iso_tx_exact=True,usb_records=len(records),wav_sha256=hashlib.sha256(wav_path.read_bytes()).hexdigest() if not fault else None,pcm_bit_exact=not fault,fault_rejected=bool(fault))
     for bench_,background in [(sclk_driver,True),(usb_driver,True),(usb_io,True),(phy,True),(bench,False)]:sim.add_testbench(bench_,background=background)
     sim.run();report=state['report'];report['scope']='actual RTL native worker/PHY/ISO/credit/CDC/mux and live Rust CLI Unix byte transport; event-level cable peers; LUNA USB tokens/electrical transport excluded'
     (output/f'{family}{"-bad-"+fault if fault else ""}-native-report.json').write_text(json.dumps(report,indent=2)+'\n')

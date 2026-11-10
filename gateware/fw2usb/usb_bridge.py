@@ -12,7 +12,7 @@ from fw2usb.raw_iso_bridge import RawIsoBridge
 
 class RawUsbBridge(Elaboratable):
     def __init__(self, *, usb=None):
-        self.usb=usb if usb is not None else RawUsbDevice(capabilities=15,external_domain=True)
+        self.usb=usb if usb is not None else RawUsbDevice(capabilities=31,external_domain=True)
         self.worker=RawWorker(iso_capacity=4096)
         self.audio=RawIsoBridge(capacity=4096,cdc=False,opaque=True)
 

@@ -105,3 +105,23 @@ bit4=failed. A100ms SCLK policy deadline fails closed if PHY status never arrive
 SUBMIT returns BUSY while recovering and IO after failure; no uncertain write is
 replayed. An external native reset clears failed recovery. This does not detect
 loss of SCLK itself; independent board clock monitoring remains required.
+
+### Native raw TX and clock snapshot
+
+Capability bit4 advertises bounded raw ISO TX and opcode0005 CLOCK_SNAPSHOT.
+Snapshot returns packed CYCLE_TIME u32 plus monotonic24.576MHz ticks u64 sampled
+together in SCLK. It does not correlate USB SOF or wall clock yet.
+ISO_CREATE direction1 requests TX, max1..256 bytes, ring1, speeds0/1/2. The16byte
+allocation response has flags0 (no RX credits). A TX lease rejects RX CREDIT.
+ISO_DATA0201 is a request with a normal nonzero cookie and the32byte record above;
+sequence/monotonic fields are currently reserved/ignored, flags must be0. The
+embedded generation, channel and handle must match the lease. Target offset must
+be0 and target cycle valid; forward horizon is less than64seconds modulo128.
+The one retained command packet waits locally for its cycle. Grant admission
+reserves conservative serialization plus64bus ticks. Late/no-grant returns IO,
+never reschedules. A terminal empty reply means physical TX completion; it is no
+acknowledgment of reception by another ISO node. After uncertain/expired pending
+ownership, actual PHY recovery blocks new work. Reset retires leases and returns
+STALE_GENERATION; USB session loss aborts the source. Host retries are forbidden.
+Native root timing and grant policies are tested; incoming non-root timer
+synchronization remains a gap, so this is not yet a universal bus TX scheduler.

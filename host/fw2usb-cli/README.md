@@ -44,3 +44,10 @@ runs the actual CLI against native RTL commands, not replay completions. Add
 `--fault crc` for loss rejection. `cas NODE ADDRESS COMPARE REPLACEMENT [32|64]`
 performs one compare-swap and fails on mismatch; it never retries the write.
 Native report files distinguish byte-port simulation from USB token validation.
+
+`iso-send CHANNEL HEX [LEAD_CYCLES]` creates a bounded256-byte S400 TX lease,
+reads the correlated native cycle/tick snapshot, submits one tag1/sy0 opaque ISO
+packet for a future cycle, and destroys the lease. Default lead8cycles;1..8000
+accepted. No uncertain send is retried. The native co-sim uses2cycles to keep
+simulated wait below its wall-clock socket timeout. Real USB latency admission
+still needs measurement; incoming non-root timer synchronization is not yet wired.
