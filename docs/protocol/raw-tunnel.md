@@ -1,4 +1,4 @@
-# Raw tunnel v0 (draft, not implemented)
+# Raw tunnel v0 (development implementation and remaining draft surface)
 
 Distinct PID, vendor interface only plus DFU runtime. Reuse control framing with
 magic FW2R on HS bulk OUT 0x01 / IN 0x81. EP0 GET_CAPS negotiates max outstanding
@@ -77,3 +77,19 @@ Generation0 is discovery-only for bus-info; other operations require the current
 generation. Session reset discards framing state and leases; native reset reports
 RESET without splitting a USB record. Explicit CREDIT, raw TX and incoming async
 leases are still unimplemented and must not be inferred from capability7.
+
+
+### Explicit RX credits
+
+Native ISO_CREATE returns four LE u32 values: handle, actual maximum payload,
+retained-ring packets(1), flags(bit0=credit admission required). Credits start at0.
+0204 CREDIT request payload is handle u32, additional packets u32, additional
+USB-record bytes u32. Both increments must be positive; totals cannot exceed32
+packets/8192 bytes. Empty success response acknowledges the grant. Each CRC-valid
+selected-channel packet consumes1 packet and56+payload bytes before replay.
+Oversized/no-credit packet candidates generate LOSS rather than partial records.
+Reset/destroy/new lease discards credits. Capability bit3 advertises this behavior;
+bits0–2 retain the initial development command/RX subset. Returned ring1 describes
+retained PHY packet RAM, not the output FIFO/host-credit budget. Raw TX remains
+unsupported. Older short ISO_CREATE responses are accepted by host replay without
+credit mode; no missing CREDIT transaction is synthesized by the replay backend.

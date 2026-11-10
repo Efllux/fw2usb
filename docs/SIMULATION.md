@@ -1,7 +1,7 @@
 # Simulation fidelity and validation ledger
 
 Owner priority, 2026-11-09: accuracy takes precedence over milestone breadth.
-E supplies the toolchain; F is **in progress**, beginning with LREQ. G–M must
+E supplies the toolchain; F has the owner-scoped integrated boundary with residuals. G–M must
 not claim end-to-end behavior until the corresponding models and tests exist.
 Tests below are synthetic unless explicitly labelled as captured hardware data.
 No hardware correlation has been performed. There is no complete chip model yet.
@@ -50,6 +50,13 @@ The decoder returns an observed request even when arbitration policy ignores it;
 `pending_bus` is the separate accepted-request state. Synthetic bus reset here
 only clears pending requests; it does not emulate reset timing or self-ID.
 
+| G link/bus/device fixtures | CRC/packet/ACK/root cycle-start/self-ID/topology; Rust golden vectors and event-level tree bus; synthetic BeBoB/DICE control/audio | Full cable arbitration waveforms, spec-captured CRC vectors, complete vendor AV/C capabilities | Physical reset/self-ID/ACK/packet captures |
+| H/I transactions and audio | Bounded RTL CSR/IRM/CAS/responder/ROM reader, ISO RAM CRC commit, AM824 RX/TX and Rust golden SYT | Nested ROM traversal, full autonomous controller and duplex scheduling | Remote devices, full channel profiles |
+| J native raw bridge | LUNA HS transport, native PHY command worker, generation/lease resets, whole-frame CDC and packet/byte credit admission; Rust nusb/replay/WAV | Raw ISO TX/deadlines, incoming FCP/ARM leases, label quarantine and USB token co-sim | Enumeration/throughput/tail latency, IO closure |
+| K clock/UAC2 components | Rust drift/jitter/SYT frequency/filter/feedback/NCO, LUNA UAC2 controls/alts/atomic capture, runtime-bound stereo profile candidates | Native sample/control integration, qualified MCLK/PLL and production profile discovery | Audio clock jitter, USB OS interoperability |
+| L host skeletons | raw1394 core ABI/IRM/receive/reset callback tests and FFADO surface audit; buildable no-device CoreAudio vtable | Drop-in FFADO surface/reactor, CoreAudio daemon/rings/audio IO | Native driver lifecycle and real streams |
+| M board WIP | Original KiCad8 net/BOM/schematic; ERC0/0, placed69parts | Connector footprint/routing/thermal/SI;186 unconnected items; not clean DRC | All physical bring-up and manufacturing review |
+
 ## Required next fidelity gates
 
 | Area | Reference / evidence to extract | Missing behavior and acceptance test |
@@ -58,11 +65,11 @@ only clears pending requests; it does not emulate reset timing or self-ID.
 | Receive/transmit | TI Figs 18–21, Table 20 | RX formatting primitive present; integrate packet FIFO/CRC; TX grant/turnaround and underrun adapter present; integrated scheduling and RTL concatenation terminator present; actual regrant scheduling absent; pin-by-pin independent reference traces still needed |
 | Power and isolation-free mode | TI p2, Figs 13/22/23, Table 21, LPS/LCtrl sections | Level LPS and software reset/LinkOn composition present; pulsed LPS and actual clock phase/edges still absent; startup trace comparison |
 | Multi-node cable bus | IEEE 1394/1394a arbitration clauses [exact clauses verify] | 24.576-MHz tick scheduler, independent PHY clocks, ack/subaction/arbitration-reset gaps and gap_count, fairness intervals, cycle-start priority and iso/async phase boundaries; no invented constants |
-| Reset/topology | IEEE self-ID clauses; TI PHY register behavior | Reset→tree-ID→self-ID timing, complements, root/node derivation, automatic physical-ID status has explicit event hook only; topology engine and reset during active cable operations absent |
+| Reset/topology | IEEE self-ID clauses; TI PHY register behavior | Reset→tree-ID→self-ID timing, complements, root/node derivation, automatic physical-ID status has explicit event hook only; event-level topology/reset engine present; cable handshake timing remains abstract |
 | BeBoB device | [family sources](devices/bebob.md) pinned Linux/FFADO anchors | ROM/CSR/AVC/FCP/CMP registers, bounded stream start, packet layouts and real SYT; identify model/revision and obtain trace before claiming realism |
 | DICE device | [family sources](devices/dice.md) pinned Linux/FFADO anchors | Distinct register protocol/ownership/notification, clock locks and streaming; no generic BeBoB emulation |
-| CDC and clock recovery | Domain plan in gateware README; measured oscillators | SCLK/USB library FIFO research harness present; device-audio domain, bridge FIFO/reset epochs and synchronizer structure checks absent; digital sims cannot prove analog metastability immunity |
-| Full-system co-simulation | TI + family sources + USB/LUNA specification | RTL PHY-LINK/link/transaction/iso/USB against models, Rust host simulated USB transport: reset→self-ID→ROM→CMP→audio→bit-exact WAV; currently absent |
+| CDC and clock recovery | Domain plan in gateware README; measured oscillators | SCLK/USB library FIFO research harness present; independent device-audio/SCLK/USB clocks and bridge FIFOs/session reset present; complete CDC/reset audit and analog correlation remain; digital sims cannot prove analog metastability immunity |
+| Full-system co-simulation | TI + family sources + USB/LUNA specification | RTL PHY-LINK/link/transaction/iso/USB against models, Rust host simulated USB transport: model reset/self-ID/ROM/CMP plus RTL audio/CDC/FW2R→Rust bit-exact WAV present; native worker control tested separately, USB tokens absent |
 | Soft-PHY sampling | AFE research PR15 | Feed analog threshold/delay waveforms to independent-clock sampler; distinguish analog inaccuracies from sampling/CDC failures |
 
 Model register/packet behavior from public documentation and independently written
@@ -361,3 +368,20 @@ connector footprint and has186 unconnected items, although geometric violations
 are zero. This is NOT M completion or fabrication-ready. See
 [hardware status and source-access gap](../hardware/phy-breakout/README.md).
 BA3F/AB2 behavioral equivalence is not established by a compatible link pinout.
+
+
+### J credit admission refinement
+
+RX ISO leases start with zero credits. Opcode0204 grants packet and USB-record-byte
+budgets (maximum32 packets/8192 bytes). A validated packet consumes one packet and
+56+payload bytes before replay; lack of credits or negotiated maximum rejects
+without emitting partial data and reports LOSS. Grants are generation/handle scoped,
+reject overcommit without changing counters, and clear on reset/lease replacement.
+ISO_CREATE now returns16 bytes: handle, maximum payload, retained-ring packets and
+flags(bit0=explicit credits). Capability bit3 denotes credits. Rust CLI/shim grant
+initial budgets and replenish at8 packets or4096 consumed bytes;64-cycle transcript
+WAV co-sim exercises the host credit exchanges. Busy-drop accounting inspects the
+selected-channel ISO header rather than treating unrelated async traffic as loss.
+74 gateware tests plus integrated ECP5 synthesis and Rust checks pass locally.
+Explicit credits do not establish USB sustainable throughput or a universal stream
+admission budget. Native worker/control and WAV replay are still separate tests.

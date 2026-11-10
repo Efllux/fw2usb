@@ -21,6 +21,9 @@ struct Iso {
     callback: Receive,
     lease: Option<u32>,
     sequence: Option<u32>,
+    credits: bool,
+    returned_packets: u32,
+    returned_bytes: u32,
 }
 pub struct Handle {
     session: Option<Session>,
@@ -349,6 +352,9 @@ unsafe extern "C" fn raw1394_iso_recv_init(
         callback: cb,
         lease: None,
         sequence: None,
+        credits: false,
+        returned_packets: 0,
+        returned_bytes: 0,
     });
     0
 }
@@ -376,7 +382,22 @@ unsafe extern "C" fn raw1394_iso_recv_start(
     p.extend(i.packets.to_le_bytes());
     match h.session().and_then(|s| s.call(0x200, p).map_err(|_| ())) {
         Ok(r) if r.len() >= 4 => {
-            h.iso.as_mut().unwrap().lease = Some(u32::from_le_bytes(r[..4].try_into().unwrap()));
+            let lease = u32::from_le_bytes(r[..4].try_into().unwrap());
+            let credits =
+                r.len() >= 16 && u32::from_le_bytes(r[12..16].try_into().unwrap()) & 1 != 0;
+            h.iso.as_mut().unwrap().lease = Some(lease);
+            h.iso.as_mut().unwrap().credits = credits;
+            if credits
+                && h.session()
+                    .and_then(|s| s.iso_credit(lease, 32, 8192).map_err(|_| ()))
+                    .is_err()
+            {
+                let _ = h
+                    .session()
+                    .and_then(|s| s.call(0x202, lease.to_le_bytes().to_vec()).map_err(|_| ()));
+                h.iso.as_mut().unwrap().lease = None;
+                return errno(libc::EIO);
+            }
             0
         }
         _ => errno(libc::EIO),
@@ -456,6 +477,16 @@ unsafe extern "C" fn raw1394_loop_iterate(handle: *mut Handle) -> c_int {
     }
     i.sequence = Some(seq);
     let cb = i.callback.unwrap();
+    i.returned_packets += 1;
+    i.returned_bytes += p.len() as u32 + 24;
+    let replenish = if i.credits && (i.returned_packets >= 8 || i.returned_bytes >= 4096) {
+        let v = Some((i.lease.unwrap(), i.returned_packets, i.returned_bytes));
+        i.returned_packets = 0;
+        i.returned_bytes = 0;
+        v
+    } else {
+        None
+    };
     let (channel, tag, sy, cycle) = (p[28], p[29], p[30], (q(12) >> 12) & 0x1fff);
     let result = cb(
         handle,
@@ -467,11 +498,20 @@ unsafe extern "C" fn raw1394_loop_iterate(handle: *mut Handle) -> c_int {
         cycle,
         0,
     );
-    if result == 2 {
+    if result == 2 || !(0..=4).contains(&result) {
         return errno(libc::EIO);
     }
     if matches!(result, 3 | 4) {
         raw1394_iso_stop(handle);
+    } else if let Some((lease, packets, bytes)) = replenish {
+        if get(handle)
+            .ok()
+            .and_then(|h| h.session().ok())
+            .and_then(|s| s.iso_credit(lease, packets, bytes).ok())
+            .is_none()
+        {
+            return errno(libc::EIO);
+        }
     }
     0
 }

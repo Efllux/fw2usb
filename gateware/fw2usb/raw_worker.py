@@ -27,11 +27,19 @@ class RawWorker(Elaboratable):
         self.monotonic_ticks=Signal(64)
         self.iso_channel=Signal(6)
         self.iso_losses=Signal(32)
+        self.iso_cost=Signal(16);self.iso_consume=Signal();self.iso_admit=Signal()
+        self.iso_packet_credits=Signal(6);self.iso_byte_credits=Signal(14)
+        self.iso_maximum=Signal(16)
         self.out_valid=Signal();self.out_ready=Signal();self.out_byte=Signal(8);self.out_last=Signal()
 
     def elaborate(self,platform):
         m=Module();m.submodules.command=self.command;m.submodules.link=self.link
         encoder=FrameEncoder();m.submodules.response=ResetInserter(self.session_reset)(encoder)
+        grant=Signal();grant_packets=Signal(6);grant_bytes=Signal(14);new_lease=Signal()
+        m.d.comb += self.iso_admit.eq(self.iso_enabled & (self.iso_packet_credits!=0) & (self.iso_byte_credits>=self.iso_cost) & (self.iso_cost<=56+self.iso_maximum))
+        with m.If(grant | self.iso_consume):
+            m.d.sync += [self.iso_packet_credits.eq(self.iso_packet_credits+Mux(grant,grant_packets,0)-self.iso_consume),
+                         self.iso_byte_credits.eq(self.iso_byte_credits+Mux(grant,grant_bytes,0)-Mux(self.iso_consume,self.iso_cost,0))]
         abort_request=Signal()
         m.d.comb += self.command.reset.eq(self.session_reset)
         status=self.link.phy.status
@@ -76,7 +84,7 @@ class RawWorker(Elaboratable):
         response_length=Signal(16);response_index=Signal(16);event=Signal()
         bus_info=Cat(self.local_node,root,Const(0x3ff,10),self.node_count,Const(0,9),self.ready,local_root,topology_error,Const(0,13))
         complete=Cat(ack,rcode,Const(0,16),result_length,Const(0,16),completion_ticks)
-        caps=Const(int.from_bytes(bytes.fromhex('00000000000001000700000000000000'),'little'),128)
+        caps=Const(int.from_bytes(bytes.fromhex('00000000000001000f00000000000000'),'little'),128)
         pair=sid_words[response_index>>3]
         sid_quad=Signal(32);payload_byte=Signal(8)
         m.d.comb += [sid_quad.eq(Mux(response_index[2],~pair,pair)),payload_byte.eq(0)]
@@ -87,7 +95,7 @@ class RawWorker(Elaboratable):
                 with m.If(response_index<16):m.d.comb += payload_byte.eq(complete >> (response_index<<3))
                 with m.Elif(result_quadlet):m.d.comb += payload_byte.eq(held_quadlet >> ((~response_index[:2])<<3))
                 with m.Else():m.d.comb += payload_byte.eq(rx_data[response_index-16])
-            with m.Case(3):m.d.comb += payload_byte.eq(Cat(self.iso_handle,Const(self.iso_capacity,32),Const(1,32)) >> (response_index<<3))
+            with m.Case(3):m.d.comb += payload_byte.eq(Cat(self.iso_handle,self.iso_maximum,Const(0,16),Const(1,32),Const(1,32)) >> (response_index<<3))
             with m.Case(5):m.d.comb += payload_byte.eq(caps >> (response_index<<3))
             with m.Case(6):m.d.comb += payload_byte.eq(loss_seen >> (response_index<<3))
         m.d.comb += [encoder.kind.eq(Mux(event,2,1)),encoder.opcode.eq(response_opcode),encoder.id.eq(response_id),
@@ -132,6 +140,9 @@ class RawWorker(Elaboratable):
                             with m.Case(0x200):
                                 with m.If(self.command.length!=12):m.d.sync += response_status.eq(1);m.next='REPLY'
                                 with m.Else():m.d.sync += parse_index.eq(0);m.next='PARSE_ISO'
+                            with m.Case(0x204):
+                                with m.If(self.command.length!=12):m.d.sync += response_status.eq(1);m.next='REPLY'
+                                with m.Else():m.d.sync += parse_index.eq(0);m.next='PARSE_CREDIT'
                             with m.Case(0x202):
                                 with m.If(self.command.length!=4):m.d.sync += response_status.eq(1);m.next='REPLY'
                                 with m.Else():m.d.sync += parse_index.eq(0);m.next='PARSE_DESTROY'
@@ -160,6 +171,19 @@ class RawWorker(Elaboratable):
                 m.d.sync += parameters[parse_index].eq(self.command.read_data)
                 with m.If(parse_index==11):m.next='ENABLE_ISO'
                 with m.Else():m.d.sync += parse_index.eq(parse_index+1)
+            with m.State('PARSE_CREDIT'):
+                m.d.comb += self.command.read_index.eq(parse_index)
+                m.d.sync += parameters[parse_index].eq(self.command.read_data)
+                with m.If(parse_index==11):m.next='CREDIT'
+                with m.Else():m.d.sync += parse_index.eq(parse_index+1)
+            with m.State('CREDIT'):
+                packets=Cat(*parameters[4:8]);bytes_=Cat(*parameters[8:12])
+                with m.If((Cat(*parameters[:4])!=self.iso_handle)|~self.iso_enabled|(self.command.generation!=self.generation)|
+                          (packets==0)|(bytes_==0)|(packets>32)|(bytes_>8192)|
+                          (self.iso_packet_credits+packets>32)|(self.iso_byte_credits+bytes_>8192)):
+                    m.d.sync += response_status.eq(1)
+                with m.Else():m.d.comb += [grant.eq(1),grant_packets.eq(packets),grant_bytes.eq(bytes_)]
+                m.next='REPLY'
             with m.State('PARSE_DESTROY'):
                 m.d.comb += self.command.read_index.eq(parse_index)
                 m.d.sync += parameters[parse_index].eq(self.command.read_data)
@@ -170,9 +194,13 @@ class RawWorker(Elaboratable):
                 with m.Else():m.d.sync += response_status.eq(1)
                 m.next='REPLY'
             with m.State('ENABLE_ISO'):
-                with m.If((parameters[0]!=0)|(parameters[1]>63)|(parameters[2]>2)|(parameters[3]!=0)|~self.ready):
+                with m.If(self.iso_enabled):m.d.sync += response_status.eq(3)
+                with m.Elif((parameters[0]!=0)|(parameters[1]>63)|(parameters[2]>2)|(parameters[3]!=0)|~self.ready|
+                            (Cat(*parameters[4:8])==0)|(Cat(*parameters[4:8])>self.iso_capacity)|(Cat(*parameters[8:12])==0)|(Cat(*parameters[8:12])>64)):
                     m.d.sync += response_status.eq(1)
-                with m.Else():m.d.sync += [self.iso_channel.eq(parameters[1][:6]),self.iso_enabled.eq(1),self.iso_handle.eq(self.iso_handle+1),mode.eq(3),response_length.eq(12)]
+                with m.Else():
+                    m.d.comb += new_lease.eq(1)
+                    m.d.sync += [self.iso_maximum.eq(Cat(*parameters[4:6])),self.iso_channel.eq(parameters[1][:6]),self.iso_enabled.eq(1),self.iso_handle.eq(self.iso_handle+1),mode.eq(3),response_length.eq(16)]
                 m.next='REPLY'
             with m.State('START'):
                 m.d.comb += request.start.eq(1);m.next='SEND'
@@ -217,4 +245,6 @@ class RawWorker(Elaboratable):
                     m.d.comb += self.command.command_ready.eq(~event);m.next='IDLE'
         with m.If(self.session_reset):
             m.d.sync += [fsm.state.eq(fsm.encoding['IDLE']),self.iso_enabled.eq(0),reset_pending.eq(0),loss_pending.eq(0)]
+        with m.If(new_lease | reset | self.session_reset | ~self.iso_enabled):
+            m.d.sync += [self.iso_packet_credits.eq(0),self.iso_byte_credits.eq(0)]
         return m

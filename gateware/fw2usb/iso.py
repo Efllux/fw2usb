@@ -23,6 +23,7 @@ class IsoAudioReceiver(Elaboratable):
         self.busy=Signal()
         self.losses=Signal(32)
         self.dbc_gap=Signal()
+        self.admit=Signal(init=1);self.admitted=Signal();self.commit_length=Signal(16)
         self.payload_start=Signal();self.payload_valid=Signal();self.payload_ready=Signal(init=1)
         self.payload_byte=Signal(8);self.payload_end=Signal();self.payload_length=Signal(16)
 
@@ -33,10 +34,11 @@ class IsoAudioReceiver(Elaboratable):
         m.submodules.memory=memory=Memory(shape=unsigned(8),depth=self.capacity,init=[])
         wp=memory.write_port(); rp=memory.read_port()
         accept=Signal(); count=Signal(18); selected=Signal(); invalid=Signal()
+        dropping=Signal();drop_count=Signal(3);drop_selected=Signal()
         length=Signal(16); read_index=Signal(range(self.capacity))
         m.d.comb += [validator.start.eq(self.rx.start & ~self.busy),validator.valid.eq(self.rx.valid & accept),
                      validator.byte.eq(self.rx.byte),validator.end.eq(self.rx.end & accept),validator.phy_error.eq(self.rx.phy_error),
-                     wp.en.eq(self.rx.valid & accept & (count>=8) & (count<8+self.capacity)),
+                     self.commit_length.eq(validator.length),wp.en.eq(self.rx.valid & accept & (count>=8) & (count<8+self.capacity)),
                      wp.addr.eq(count-8),wp.data.eq(self.rx.byte),rp.addr.eq(read_index),rp.en.eq(1),
                      codec.byte.eq(rp.data),self.sample.eq(codec.sample),self.sample_channel.eq(codec.channel),
                      self.sample_valid.eq(codec.sample_valid),self.syt.eq(codec.syt),self.dbc_gap.eq(codec.dbc_gap),
@@ -45,11 +47,13 @@ class IsoAudioReceiver(Elaboratable):
         with m.If(codec.sample_valid & ~self.sample_ready):
             m.d.sync += self.losses.eq(self.losses+1)
         with m.If(self.rx.start):
-            m.d.sync += [accept.eq(~self.busy),count.eq(0),invalid.eq(0),selected.eq(0)]
-            with m.If(self.busy):
-                m.d.sync += self.losses.eq(self.losses+1)
+            m.d.sync += [accept.eq(~self.busy),count.eq(0),invalid.eq(0),selected.eq(0),dropping.eq(self.busy),drop_count.eq(0),drop_selected.eq(0)]
         with m.Elif(self.rx.end):
-            m.d.sync += accept.eq(0)
+            m.d.sync += [accept.eq(0),dropping.eq(0)]
+        with m.If(self.rx.valid & dropping & (drop_count<4)):
+            m.d.sync += drop_count.eq(drop_count+1)
+            with m.If(drop_count==2):m.d.sync += drop_selected.eq((self.rx.byte[:6]==self.channel) & ((self.rx.byte[6:8]==1) if self.validate_cip else Const(1)))
+            with m.If((drop_count==3)&drop_selected&(self.rx.byte[4:8]==10)):m.d.sync += self.losses.eq(self.losses+1)
         with m.If(self.rx.valid & accept):
             m.d.sync += count.eq(count+1)
             with m.Switch(count):
@@ -75,7 +79,10 @@ class IsoAudioReceiver(Elaboratable):
                     bad_shape=(invalid | (validator.length<8) | ((validator.length-8) % (self.dbs*4) != 0)) if self.validate_cip else Const(0)
                     with m.If(bad_shape | (validator.length>self.capacity)):
                         m.d.sync += self.error.eq(1)
+                    with m.Elif(~self.admit):
+                        m.d.sync += self.losses.eq(self.losses+1)
                     with m.Else():
+                        m.d.comb += self.admitted.eq(1)
                         m.d.sync += [length.eq(validator.length),read_index.eq(0)]
                         m.next='START'
             with m.State('START'):

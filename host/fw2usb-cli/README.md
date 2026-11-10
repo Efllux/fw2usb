@@ -29,6 +29,11 @@ invent or automatically replay a write. Each recorded cookie is used once/sessio
 
 The live nusb backend and LUNA HS core are implemented, but the current standalone
 USB core advertises capability0: it is a transport without the complete bridge
-command worker attached. Physical enumeration, throughput and board IO constraints
+command worker attached (the integrated RawUsbBridge now has native commands and
+credit-based RX; the standalone transport intentionally has no command service). Physical enumeration, throughput and board IO constraints
 remain unvalidated. The co-sim USB boundary is bulk bytes, not electrical USB tokens.
 Do not infer a working physical adapter from the replay result.
+
+Credit-mode leases prefill32 packets/8192 record bytes and return credits in bounded
+batches after consumption. Recording aborts on reset/loss and destroys its lease;
+no FireWire write is automatically retried after a transport error.

@@ -97,7 +97,10 @@ fn run() -> Result<()> {
             if channels==0 || channels>32{return Err("invalid channel count".into());}
             let mut create=vec![0,channel,2,0];create.extend(4096u32.to_le_bytes());create.extend(64u32.to_le_bytes());
             let handle=session.call(0x200,create)?;if handle.len()<4{return Err("missing ISO handle".into());}
+            let credits=handle.len()>=16 && u32::from_le_bytes(handle[12..16].try_into()?)&1!=0;
             let handle=u32::from_le_bytes(handle[..4].try_into()?);let recording=(|| -> Result<Vec<u8>> {
+            if credits {session.iso_credit(handle,32,8192)?;}
+            let mut returned_packets=0;let mut returned_bytes=0;
             let mut sequence=None;
             let mut parser=fw_amdtp::stream::PacketParser::new();let mut pcm=Vec::new();
             let max_packets=args.get(5).map(|s|number(s)).transpose()?.unwrap_or(8000);let mut packets=0;
@@ -120,6 +123,12 @@ fn run() -> Result<()> {
                 let event=parser.parse(payload,&mut |_,ch,sample|{channel_error|=ch>=channels as usize;if ch<channels as usize{channel_error|=ch!=expected_channel;expected_channel=(expected_channel+1)%channels as usize;pcm.extend_from_slice(&sample.to_le_bytes()[..3]);}}).map_err(|_|"bad AMDTP")?;
                 if channel_error || expected_channel!=0 || matches!(event,fw_amdtp::stream::RxEvent::Data{dbc_gap:true,..}){return Err("AMDTP discontinuity".into());}
                 packets+=1;
+                if credits {
+                    returned_packets+=1;returned_bytes+=56+length as u32;
+                    if returned_packets>=8 || returned_bytes>=4096 {
+                        session.iso_credit(handle,returned_packets,returned_bytes)?;returned_packets=0;returned_bytes=0;
+                    }
+                }
             }
             Ok(pcm)
             })();
