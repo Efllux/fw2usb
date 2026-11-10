@@ -26,9 +26,9 @@ def descriptors(*, raw=True):
 
 
 class GetCaps(USBRequestHandler):
-    def __init__(self, *, capabilities=0):
+    def __init__(self, *, capabilities=0, interface_number=0):
         super().__init__()
-        self.capabilities=capabilities
+        self.capabilities=capabilities;self.interface_number=interface_number
 
     def elaborate(self,platform):
         m=Module();i=self.interface;s=i.setup
@@ -36,7 +36,7 @@ class GetCaps(USBRequestHandler):
         index=Signal(4);length=Signal(5)
         valid=Signal()
         m.d.comb += [i.claim.eq(s.type==2),valid.eq((s.recipient==1)&s.is_in_request&(s.request==1)&
-                                                 (s.index==0)&(s.value==0)&(s.length!=0))]
+                                                 (s.index==self.interface_number)&(s.value==0)&(s.length!=0))]
         with m.FSM(domain='usb') as fsm:
             with m.State('IDLE'):pass
             with m.State('WAIT'):
@@ -72,7 +72,7 @@ class SessionEndpoint(Elaboratable):
         self.endpoint=endpoint;self.reset=reset
 
     def elaborate(self, platform):
-        return ResetInserter({'usb':self.reset})(self.endpoint).elaborate(platform)
+        m=Module();m.submodules.endpoint=ResetInserter({'usb':self.reset})(self.endpoint);return m
 
 
 class RawUsbDevice(Elaboratable):
