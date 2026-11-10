@@ -37,7 +37,8 @@ fn run() -> Result<()> {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     let mut replay = None;
     let mut serial = None;
-    let mut generation = 1u32;
+    let mut generation = 0u32;
+    let mut explicit_generation = false;
     while args.first().is_some_and(|s| s.starts_with("--")) {
         if args.len() < 2 {
             return Err("option value missing".into());
@@ -47,7 +48,10 @@ fn run() -> Result<()> {
         match key.as_str() {
             "--replay" => replay = Some(value),
             "--serial" => serial = Some(value),
-            "--generation" => generation = value.parse()?,
+            "--generation" => {
+                generation = value.parse()?;
+                explicit_generation = true;
+            }
             _ => return Err("unknown option".into()),
         }
     }
@@ -66,9 +70,13 @@ fn run() -> Result<()> {
         Box::new(Usb::open(serial.as_deref())?)
     };
     let mut session = Session::new(transport, generation);
+    if !explicit_generation && command != "bus-info" {
+        session.call(3, Vec::new())?;
+        generation = session.generation;
+    }
     let arg = |i: usize| args.get(i).map(String::as_str).ok_or("argument missing");
     match command {
-        "bus-info"=>{let data=session.call(3,Vec::new())?;println!("generation={} bus-info={}",generation,data.iter().map(|b|format!("{b:02x}")).collect::<String>());},
+        "bus-info"=>{let data=session.call(3,Vec::new())?;println!("generation={} bus-info={}",session.generation,data.iter().map(|b|format!("{b:02x}")).collect::<String>());},
         "self-id"=>{let data=session.call(4,Vec::new())?;if !data.len().is_multiple_of(8){return Err("malformed self-ID dump".into());}for pair in data.as_chunks::<8>().0{let a=u32::from_be_bytes(pair[..4].try_into()?);let b=u32::from_be_bytes(pair[4..].try_into()?);if a!=!b{return Err("bad self-ID inverse".into());}println!("{a:08x} {b:08x}");}},
         "read"=>{let data=session.read(u16::try_from(number(arg(1)?)?)?,number(arg(2)?)?,4)?;println!("0x{:08x}",u32::from_be_bytes(data.try_into().map_err(|_|"short quadlet")?));},
         "write"=>{session.submit(u16::try_from(number(arg(1)?)?)?,number(arg(2)?)?,0,&u32::try_from(number(arg(3)?)?)?.to_be_bytes(),4)?;},

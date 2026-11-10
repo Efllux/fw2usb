@@ -68,3 +68,12 @@ The standalone LUNA transport currently advertises capability0 until the full
 bridge worker is attached. No physical USB transfer or device support claim follows
 from byte-stream co-simulation. Credit negotiation and fully attached live command
 handling remain tracked implementation work.
+
+Native bridge checkpoint: single outstanding async request, maximum256-byte data;
+quadlet/block reads/writes and compare-swap supported. ISO_CREATE RX only returns
+`handle u32, max_payload u32, ring_packets u32` with at most4096-byte payload/ring1.
+Handles advance on each lease. ISO_DESTROY requires the current live handle.
+Generation0 is discovery-only for bus-info; other operations require the current
+generation. Session reset discards framing state and leases; native reset reports
+RESET without splitting a USB record. Explicit CREDIT, raw TX and incoming async
+leases are still unimplemented and must not be inferred from capability7.

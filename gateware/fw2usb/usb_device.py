@@ -3,7 +3,7 @@ External bridge logic supplies/parses FW2R/FW2C frames on bulk streams. This cor
 provides USB enumeration/transport, not an implicit success response to commands.
 """
 import struct
-from amaranth import Array, ClockDomain, ClockSignal, ResetSignal, Const, Elaboratable, Module, Record, Signal
+from amaranth import Array, ClockDomain, ClockSignal, ResetSignal, Const, Elaboratable, Module, Record, Signal, ResetInserter
 from luna.usb2 import USBDevice, USBStreamInEndpoint, USBStreamOutEndpoint
 from luna.gateware.usb.usb2.request import USBRequestHandler
 from usb_protocol.emitters import DeviceDescriptorCollection
@@ -65,26 +65,40 @@ class GetCaps(USBRequestHandler):
         return m
 
 
+class SessionEndpoint(Elaboratable):
+    """Reset endpoint queues, DATA PID and FSMs on USB bus reset."""
+    def __init__(self, endpoint, reset):
+        self.interface=endpoint.interface
+        self.endpoint=endpoint;self.reset=reset
+
+    def elaborate(self, platform):
+        return ResetInserter({'usb':self.reset})(self.endpoint).elaborate(platform)
+
+
 class RawUsbDevice(Elaboratable):
-    def __init__(self, *, raw=True):
+    def __init__(self, *, raw=True, capabilities=0, external_domain=False):
         self.raw=raw
+        self.capabilities=capabilities;self.external_domain=external_domain
         self.ulpi=Record([('data',[('i',8),('o',8),('oe',1)]),('dir',[('i',1)]),
                           ('nxt',[('i',1)]),('stp',[('o',1)]),('rst',[('o',1)])])
         self.in_valid=Signal();self.in_ready=Signal();self.in_byte=Signal(8);self.in_last=Signal()
         self.out_valid=Signal();self.out_ready=Signal();self.out_byte=Signal(8)
         self.connect=Signal(init=1)
-        self.clock=Signal();self.reset=Signal()
+        self.clock=Signal();self.reset=Signal();self.reset_detected=Signal()
 
     def elaborate(self,platform):
-        m=Module();m.domains+=ClockDomain('usb')
-        m.d.comb += [ClockSignal('usb').eq(self.clock),ResetSignal('usb').eq(self.reset)]
+        m=Module()
+        if not self.external_domain:
+            m.domains+=ClockDomain('usb')
+            m.d.comb += [ClockSignal('usb').eq(self.clock),ResetSignal('usb').eq(self.reset)]
         m.submodules.usb=usb=USBDevice(bus=self.ulpi,handle_clocking=False)
         control=usb.add_standard_control_endpoint(descriptors(raw=self.raw))
-        control.add_request_handler(GetCaps())
+        control.add_request_handler(GetCaps(capabilities=self.capabilities))
         incoming=USBStreamOutEndpoint(endpoint_number=1,max_packet_size=512,buffer_size=2048)
         outgoing=USBStreamInEndpoint(endpoint_number=1,max_packet_size=512)
-        usb.add_endpoint(incoming);usb.add_endpoint(outgoing)
-        m.d.comb += [usb.connect.eq(self.connect),outgoing.stream.valid.eq(self.in_valid),
+        usb.add_endpoint(SessionEndpoint(incoming,usb.reset_detected))
+        usb.add_endpoint(SessionEndpoint(outgoing,usb.reset_detected))
+        m.d.comb += [usb.connect.eq(self.connect),self.reset_detected.eq(usb.reset_detected),outgoing.stream.valid.eq(self.in_valid),
                      outgoing.stream.payload.eq(self.in_byte),outgoing.stream.last.eq(self.in_last),
                      self.in_ready.eq(outgoing.stream.ready),self.out_valid.eq(incoming.stream.valid),
                      self.out_byte.eq(incoming.stream.payload),incoming.stream.ready.eq(self.out_ready)]

@@ -23,6 +23,9 @@ impl Session {
             generation: self.generation,
             payload,
         })?;
+        if opcode == 3 && response.status == 0 {
+            self.generation = response.generation;
+        }
         if response.generation != self.generation || response.status != 0 || response.id != self.id
         {
             return Err("failed/stale completion".into());
@@ -63,9 +66,25 @@ impl Session {
         Ok(response[16..].to_vec())
     }
     pub fn read(&mut self, node: u16, address: u64, length: u32) -> Result<Vec<u8>> {
-        let data = self.submit(node, address, if length == 4 { 4 } else { 5 }, &[], length)?;
-        if data.len() != length as usize {
-            return Err("short read response".into());
+        if length == 0 || length > 1_048_576 {
+            return Err("read size outside host bound".into());
+        }
+        let mut data = Vec::with_capacity(length as usize);
+        while data.len() < length as usize {
+            let part = (length as usize - data.len()).min(256) as u32;
+            let bytes = self.submit(
+                node,
+                address
+                    .checked_add(data.len() as u64)
+                    .ok_or("address overflow")?,
+                if part == 4 { 4 } else { 5 },
+                &[],
+                part,
+            )?;
+            if bytes.len() != part as usize {
+                return Err("short read response".into());
+            }
+            data.extend(bytes);
         }
         Ok(data)
     }

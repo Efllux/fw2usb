@@ -304,3 +304,22 @@ new WAVs. Control operations use behavioral transaction peers and recorded USB
 request/response transcripts; the USB boundary is bulk bytes, not LUNA token/
 electrical simulation. Full live command-worker, credit/reset-epoch integration,
 realistic vendor AV/C capabilities and real captures remain explicit gaps.
+
+### Native command worker checkpoint
+
+RawUsbBridge now attaches a single-outstanding PHY/link worker to LUNA bulk CDC.
+Real PHY-pin tests cover self-ID/local-ID discovery, quadlet and block operations,
+CAS, timeout, ISO lease creation/destruction and generation/session resets. Async
+payloads are bounded to256 bytes; opaque RX ISO payloads to4096 bytes. Whole-frame
+arbitration preserves headers under backpressure. Lease/generation/time metadata
+snapshot at packet start, including empty/non-CIP streams. USB session reset
+flushes endpoint FSM/PID/queues, CDC queues and audio framer together; native bus
+reset retains USB framing and reports a new generation. Native bridge advertises
+capability7; standalone transport remains capability0.69 gateware tests, integrated
+ECP5 synthesis/check, Rust1.99 checks and8-cycle WAV co-sim pass locally.
+
+Remaining J work: explicit host credit records/admission, incoming async/FCP leases,
+raw ISO TX/deadlines, label quarantine after timeout and token-level USB co-sim.
+These are software/verification gaps, not hardware-only blockers. The native worker
+pin test and transcript WAV test exercise different integration boundaries; no
+claim that the WAV test currently enumerates LUNA or executes the native worker.

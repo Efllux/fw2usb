@@ -43,7 +43,8 @@ impl Transport for Replay {
                 f.kind == 0
                     && f.opcode == request.opcode
                     && f.payload == request.payload
-                    && f.generation == request.generation
+                    && (f.generation == request.generation
+                        || (request.generation == 0 && matches!(request.opcode, 1 | 3)))
                     && !self.used.contains(&f.id)
             })
             .ok_or("request absent from simulation transcript")?;

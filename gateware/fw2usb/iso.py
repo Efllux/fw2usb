@@ -7,10 +7,12 @@ from fw2usb.packet import PacketReceiver, PacketTransmitter
 
 
 class IsoAudioReceiver(Elaboratable):
-    def __init__(self, *, dbs=2, capacity=512):
+    def __init__(self, *, dbs=2, capacity=512, validate_cip=True):
         self.dbs,self.capacity=dbs,capacity
+        self.validate_cip=validate_cip
         self.rx=SimpleNamespace(start=Signal(),valid=Signal(),byte=Signal(8),end=Signal(),phy_error=Signal())
         self.channel=Signal(6)
+        self.tag=Signal(2);self.sy=Signal(4);self.release_ready=Signal(init=1)
         self.sample=Signal(24)
         self.sample_channel=Signal(8)
         self.sample_valid=Signal()
@@ -52,7 +54,9 @@ class IsoAudioReceiver(Elaboratable):
             m.d.sync += count.eq(count+1)
             with m.Switch(count):
                 with m.Case(2):
-                    m.d.sync += selected.eq((self.rx.byte[:6]==self.channel) & (self.rx.byte[6:8]==1))
+                    m.d.sync += self.tag.eq(self.rx.byte[6:8])
+                    m.d.sync += selected.eq((self.rx.byte[:6]==self.channel) & ((self.rx.byte[6:8]==1) if self.validate_cip else Const(1)))
+                with m.Case(3):m.d.sync += self.sy.eq(self.rx.byte[:4])
                 with m.Case(8):
                     with m.If(self.rx.byte[6:8] != 0):m.d.sync += invalid.eq(1)
                 with m.Case(9):
@@ -66,17 +70,18 @@ class IsoAudioReceiver(Elaboratable):
         with m.FSM() as fsm:
             m.d.comb += self.busy.eq(~fsm.ongoing('IDLE'))
             with m.State('IDLE'):
-                with m.If(validator.bad):m.d.sync += self.error.eq(1)
+                with m.If(validator.bad & selected & (validator.tcode==10)):m.d.sync += self.error.eq(1)
                 with m.If(validator.good & (validator.tcode==10) & selected):
-                    with m.If(invalid | (validator.length<8) | (validator.length>self.capacity) |
-                              ((validator.length-8) % (self.dbs*4) != 0)):
+                    bad_shape=(invalid | (validator.length<8) | ((validator.length-8) % (self.dbs*4) != 0)) if self.validate_cip else Const(0)
+                    with m.If(bad_shape | (validator.length>self.capacity)):
                         m.d.sync += self.error.eq(1)
                     with m.Else():
                         m.d.sync += [length.eq(validator.length),read_index.eq(0)]
                         m.next='START'
             with m.State('START'):
                 m.d.comb += [codec.start.eq(1),self.payload_start.eq(1)]
-                m.next='WAIT'
+                with m.If(length==0):m.next='END'
+                with m.Else():m.next='WAIT'
             with m.State('WAIT'):
                 m.next='BYTE'
             with m.State('BYTE'):
@@ -90,8 +95,9 @@ class IsoAudioReceiver(Elaboratable):
                 m.d.comb += [codec.end.eq(1),self.payload_end.eq(1)]
                 m.next='DONE'
             with m.State('DONE'):
-                m.d.sync += [self.done.eq(1),self.error.eq(codec.error)]
-                m.next='IDLE'
+                with m.If(self.release_ready):
+                    m.d.sync += [self.done.eq(1),self.error.eq(codec.error if self.validate_cip else 0)]
+                    m.next='IDLE'
         return m
 
 
