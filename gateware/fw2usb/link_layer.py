@@ -8,6 +8,7 @@ from fw2usb.phy_link import PhyLink
 from fw2usb.packet import PacketReceiver
 from fw2usb.link import SelfIdCapture, AckDecision
 from fw2usb.cycle_master import CycleMaster
+from fw2usb.cycle_follower import CycleFollower
 
 
 class LinkLayer(Elaboratable):
@@ -16,6 +17,11 @@ class LinkLayer(Elaboratable):
         self.packet = PacketReceiver()
         self.selfid = SelfIdCapture()
         self.cycle = CycleMaster()
+        self.follower = CycleFollower()
+        self.follow_cycles = Signal()
+        self.timer_load = Signal()
+        self.timer_value = Signal(32)
+        self.root_node = Signal(16,init=0xffff)
         self.selfid_phase = Signal()
         self.capacity = Signal(init=1)
         self.request = SimpleNamespace(valid=Signal(),ready=Signal(),kind=Signal(3),speed=Signal(3),
@@ -33,6 +39,12 @@ class LinkLayer(Elaboratable):
         m.submodules.packet = ResetInserter(self.phy.bus_reset | ~self.phy.enable)(self.packet)
         m.submodules.selfid = ResetInserter(self.phy.bus_reset | ~self.phy.enable)(self.selfid)
         m.submodules.cycle = self.cycle
+        m.submodules.follower = ResetInserter(self.phy.bus_reset | ~self.phy.enable | self.timer_load)(self.follower)
+        m.d.comb += [self.follower.now.eq(self.cycle.timer.value),self.follower.tick.eq(self.cycle.timer.tick),
+                     self.follower.enable.eq(self.follow_cycles),self.follower.root.eq(self.root_node),
+                     self.follower.start.eq(self.phy.rx.start & ~self.selfid_phase),self.follower.valid.eq(self.phy.rx.valid & ~self.selfid_phase),
+                     self.follower.byte.eq(self.phy.rx.byte),self.follower.end.eq(self.phy.rx.end & ~self.selfid_phase),self.follower.good.eq(self.packet.good),
+                     self.cycle.timer.load.eq(self.follower.load | self.timer_load),self.cycle.timer.load_value.eq(Mux(self.timer_load,self.timer_value,self.follower.value)),self.cycle.timer.pause.eq(self.follower.pause)]
         m.submodules.ack = ack = AckDecision()
         cycle_owned = Signal()
         ack_owned = Signal()

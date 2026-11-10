@@ -12,6 +12,7 @@ from fw2usb.phy_link import PhyLink
 from fw2usb.link import Crc32, CycleTimer, SelfIdCapture, AckDecision
 from fw2usb.packet import PacketReceiver, PacketTransmitter
 from fw2usb.cycle_master import CycleMaster
+from fw2usb.cycle_follower import CycleFollower
 from fw2usb.link_layer import LinkLayer
 from fw2usb.transaction import CsrBank, RomReader
 from fw2usb.responder import TransactionResponder
@@ -31,7 +32,7 @@ from fw2usb.uac2 import AudioUsbDevice
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--route', action='store_true')
-    parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive', 'transmit', 'phy_link', 'crc32', 'cycle', 'selfid', 'packet_rx', 'packet_tx', 'ack', 'cycle_master', 'link_layer', 'csr', 'rom_reader', 'transaction', 'transaction_link', 'amdtp_rx', 'amdtp_tx', 'syt', 'iso_rx', 'iso_tx', 'usb_raw', 'raw_iso', 'frame_encoder', 'frame_decoder', 'async_request', 'raw_worker', 'usb_bridge', 'usb_audio','raw_iso_tx'], default='smoke')
+    parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive', 'transmit', 'phy_link', 'crc32', 'cycle', 'selfid', 'packet_rx', 'packet_tx', 'ack', 'cycle_master', 'link_layer', 'csr', 'rom_reader', 'transaction', 'transaction_link', 'amdtp_rx', 'amdtp_tx', 'syt', 'iso_rx', 'iso_tx', 'usb_raw', 'raw_iso', 'frame_encoder', 'frame_decoder', 'async_request', 'raw_worker', 'usb_bridge', 'usb_audio','raw_iso_tx','cycle_follower'], default='smoke')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
     out = root / 'build'
@@ -41,14 +42,15 @@ def main():
     constructors = {'smoke': Heartbeat, 'lreq': LreqSerializer,
                     'status': StatusReceiver, 'receive': ReceiveAdapter, 'transmit': TransmitAdapter, 'phy_link': PhyLink, 'crc32': Crc32, 'cycle': CycleTimer, 'selfid': SelfIdCapture, 'packet_rx': PacketReceiver, 'packet_tx': PacketTransmitter,
                     'ack': AckDecision, 'cycle_master': CycleMaster, 'link_layer': LinkLayer, 'csr': CsrBank, 'rom_reader': RomReader, 'transaction': TransactionResponder, 'transaction_link': TransactionLink, 'amdtp_rx': AmdtpReceiver, 'amdtp_tx': AmdtpTransmitter,
-                    'syt': SytEngine, 'iso_rx': IsoAudioReceiver, 'iso_tx': IsoAudioTransmitter, 'usb_raw': RawUsbDevice, 'raw_iso': RawIsoBridge, 'frame_encoder': FrameEncoder, 'frame_decoder': FrameDecoder, 'async_request': AsyncRequestEncoder, 'raw_worker': RawWorker, 'usb_bridge': RawUsbBridge, 'usb_audio': AudioUsbDevice,'raw_iso_tx':RawIsoTransmitter}
+                    'syt': SytEngine, 'iso_rx': IsoAudioReceiver, 'iso_tx': IsoAudioTransmitter, 'usb_raw': RawUsbDevice, 'raw_iso': RawIsoBridge, 'frame_encoder': FrameEncoder, 'frame_decoder': FrameDecoder, 'async_request': AsyncRequestEncoder, 'raw_worker': RawWorker, 'usb_bridge': RawUsbBridge, 'usb_audio': AudioUsbDevice,'raw_iso_tx':RawIsoTransmitter,'cycle_follower':CycleFollower}
     port_names = {
+        'cycle_follower':['now','tick','enable','root','start','valid','byte','end','good','load','value','pause','debt','accepted','updates','synced'],
         'packet_rx': ['start', 'valid', 'byte', 'end', 'phy_error', 'good', 'bad', 'header_good', 'tcode', 'length'],
         'packet_tx': ['start', 'has_data', 'valid', 'ready', 'byte', 'header_last', 'data_last',
                       'out_valid', 'out_ready', 'out_byte', 'out_last', 'busy'],
         'ack': ['end', 'addressed', 'broadcast', 'header_good', 'data_good', 'capacity', 'tcode', 'valid', 'byte'],
         'csr': ['valid', 'ready', 'address', 'write', 'compare_swap', 'compare', 'data',
-                'response_valid', 'response_ready', 'response_data', 'rcode', 'bus_reset', 'cycle_time'],
+                'response_valid', 'response_ready', 'response_data', 'rcode', 'bus_reset', 'cycle_time','cycle_write','cycle_data'],
         'rom_reader': ['start', 'bus_reset', 'local_node', 'remote_node', 'tx_valid', 'tx_ready', 'tx_byte',
                        'tx_last', 'response_valid', 'response_source', 'response_label', 'response_data',
                        'response_rcode', 'done', 'error', 'busy', 'length', 'read_index', 'read_data'],
@@ -68,7 +70,7 @@ def main():
         'iso_tx': ['start','channel','valid','ready','byte','last'],
         'transaction_link': [],
         'transaction': ['node_id', 'bus_reset', 'tx_valid', 'tx_ready', 'tx_byte', 'tx_last', 'busy', 'dropped'],
-        'link_layer': ['selfid_phase', 'tx_valid', 'tx_ready', 'tx_byte', 'tx_last'],
+        'link_layer': ['follow_cycles','root_node','timer_load','timer_value','selfid_phase', 'tx_valid', 'tx_ready', 'tx_byte', 'tx_last'],
         'cycle_master': ['node_id', 'grant', 'request', 'valid', 'ready', 'byte', 'last'],
         'crc32': ['clear', 'valid', 'byte', 'value', 'raw'],
         'cycle': ['load', 'load_value', 'value', 'root', 'enable',
@@ -107,7 +109,8 @@ def main():
     if args.core == 'transaction_link':
         ports.extend(getattr(dut.link.phy, name) for name in ['enable', 'bus_reset', 'ctl_in', 'data_in', 'ctl_out', 'data_out', 'oe', 'lreq'])
         ports.extend([dut.link.cycle.node_id, dut.link.selfid_phase])
-        ports.extend(getattr(dut.link.cycle.timer, name) for name in ['root', 'enable', 'load', 'load_value', 'value'])
+        ports.extend(getattr(dut.link.cycle.timer, name) for name in ['root', 'enable', 'value'])
+
     if args.core == 'transaction':
         ports.extend(getattr(dut.rx, name) for name in ['start', 'valid', 'byte', 'end', 'phy_error'])
         ports.append(dut.csr.cycle_time)
@@ -117,7 +120,7 @@ def main():
                                  (dut.packet, ['good', 'bad', 'header_good', 'tcode', 'length']),
                                  (dut.selfid, ['accept', 'error', 'packet', 'physical_id']),
                                  (dut.cycle, ['node_id']),
-                                 (dut.cycle.timer, ['root', 'enable', 'load', 'load_value', 'value', 'missed'])]:
+                                 (dut.cycle.timer, ['root', 'enable', 'value', 'missed'])]:
             ports.extend(getattr(interface, name) for name in names)
     if args.core == 'cycle_master':
         ports.extend(getattr(dut.timer, name) for name in ['root', 'enable', 'value', 'load', 'load_value', 'missed'])

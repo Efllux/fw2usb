@@ -49,6 +49,7 @@ jobs:
       - run: python gateware/build.py --core packet_rx
       - run: python gateware/build.py --core packet_tx
       - run: python gateware/build.py --core ack
+      - run: python gateware/build.py --core cycle_follower
       - run: python gateware/build.py --core cycle_master
       - run: python gateware/build.py --core link_layer
       - run: python gateware/build.py --core csr

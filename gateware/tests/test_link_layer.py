@@ -56,10 +56,10 @@ class LinkLayerTest(unittest.TestCase):
         async def bench(ctx):
             ctx.set(dut.cycle.timer.root,1)
             ctx.set(dut.cycle.timer.enable,1)
-            ctx.set(dut.cycle.timer.load,1)
-            ctx.set(dut.cycle.timer.load_value,3071)
+            ctx.set(dut.timer_load,1)
+            ctx.set(dut.timer_value,3071)
             await ctx.tick()
-            ctx.set(dut.cycle.timer.load,0)
+            ctx.set(dut.timer_load,0)
             decoder = LreqDecoder()
             for _ in range(70):
                 decoder.sample(ctx.get(dut.phy.lreq))

@@ -29,12 +29,15 @@ class CsrBank(Elaboratable):
         self.rcode = Signal(4)
         self.bus_reset = Signal()
         self.cycle_time = Signal(32)
+        self.cycle_write = Signal()
+        self.cycle_data = Signal(32)
         self.output_channel = Signal(6)
         self.input_channel = Signal(6)
         self.connected = Signal()
 
     def elaborate(self, platform):
         m = Module()
+        m.d.sync += self.cycle_write.eq(0)
         manager = Signal(32,init=63)
         bandwidth = Signal(32,init=4915)
         high = Signal(32,init=0xffffffff)
@@ -59,8 +62,9 @@ class CsrBank(Elaboratable):
                             m.d.sync += register.eq(self.data)
                 with m.Case(0xfffff0000200):
                     m.d.sync += self.response_data.eq(self.cycle_time)
-                    with m.If(self.write | self.compare_swap):
+                    with m.If(self.compare_swap | (self.write & ((self.data[:12]>=3072)|(self.data[12:25]>=8000)))):
                         m.d.sync += self.rcode.eq(6)
+                    with m.Elif(self.write):m.d.sync += [self.cycle_write.eq(1),self.cycle_data.eq(self.data)]
                 for index,value in enumerate(self.rom):
                     with m.Case(0xfffff0000400+index*4):
                         m.d.sync += self.response_data.eq(value)

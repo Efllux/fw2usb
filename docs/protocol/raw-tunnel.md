@@ -123,5 +123,7 @@ never reschedules. A terminal empty reply means physical TX completion; it is no
 acknowledgment of reception by another ISO node. After uncertain/expired pending
 ownership, actual PHY recovery blocks new work. Reset retires leases and returns
 STALE_GENERATION; USB session loss aborts the source. Host retries are forbidden.
-Native root timing and grant policies are tested; incoming non-root timer
-synchronization remains a gap, so this is not yet a universal bus TX scheduler.
+Root and CRC-qualified cycle-slave timing are connected. Before a fresh root
+cycle-start (or after the two-cycle watchdog expires), non-root TX allocation and
+CLOCK_SNAPSHOT return BUSY. Bus-info bit5 reports clock readiness. Physical
+latency compensation and sustainable queue admission remain unqualified.
