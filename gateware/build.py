@@ -16,12 +16,14 @@ from fw2usb.link_layer import LinkLayer
 from fw2usb.transaction import CsrBank, RomReader
 from fw2usb.responder import TransactionResponder
 from fw2usb.transaction_link import TransactionLink
+from fw2usb.amdtp import AmdtpReceiver, AmdtpTransmitter, SytEngine
+from fw2usb.iso import IsoAudioReceiver, IsoAudioTransmitter
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--route', action='store_true')
-    parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive', 'transmit', 'phy_link', 'crc32', 'cycle', 'selfid', 'packet_rx', 'packet_tx', 'ack', 'cycle_master', 'link_layer', 'csr', 'rom_reader', 'transaction', 'transaction_link'], default='smoke')
+    parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive', 'transmit', 'phy_link', 'crc32', 'cycle', 'selfid', 'packet_rx', 'packet_tx', 'ack', 'cycle_master', 'link_layer', 'csr', 'rom_reader', 'transaction', 'transaction_link', 'amdtp_rx', 'amdtp_tx', 'syt', 'iso_rx', 'iso_tx'], default='smoke')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
     out = root / 'build'
@@ -30,7 +32,8 @@ def main():
         parser.error('only the safe smoke image has board IO constraints')
     constructors = {'smoke': Heartbeat, 'lreq': LreqSerializer,
                     'status': StatusReceiver, 'receive': ReceiveAdapter, 'transmit': TransmitAdapter, 'phy_link': PhyLink, 'crc32': Crc32, 'cycle': CycleTimer, 'selfid': SelfIdCapture, 'packet_rx': PacketReceiver, 'packet_tx': PacketTransmitter,
-                    'ack': AckDecision, 'cycle_master': CycleMaster, 'link_layer': LinkLayer, 'csr': CsrBank, 'rom_reader': RomReader, 'transaction': TransactionResponder, 'transaction_link': TransactionLink}
+                    'ack': AckDecision, 'cycle_master': CycleMaster, 'link_layer': LinkLayer, 'csr': CsrBank, 'rom_reader': RomReader, 'transaction': TransactionResponder, 'transaction_link': TransactionLink, 'amdtp_rx': AmdtpReceiver, 'amdtp_tx': AmdtpTransmitter,
+                    'syt': SytEngine, 'iso_rx': IsoAudioReceiver, 'iso_tx': IsoAudioTransmitter}
     port_names = {
         'packet_rx': ['start', 'valid', 'byte', 'end', 'phy_error', 'good', 'bad', 'header_good', 'tcode', 'length'],
         'packet_tx': ['start', 'has_data', 'valid', 'ready', 'byte', 'header_last', 'data_last',
@@ -41,6 +44,11 @@ def main():
         'rom_reader': ['start', 'bus_reset', 'local_node', 'remote_node', 'tx_valid', 'tx_ready', 'tx_byte',
                        'tx_last', 'response_valid', 'response_source', 'response_label', 'response_data',
                        'response_rcode', 'done', 'error', 'busy', 'length', 'read_index', 'read_data'],
+        'amdtp_rx': ['start','valid','byte','end','sample_valid','sample','channel','frame','syt','dbc','dbs','error','dbc_gap'],
+        'amdtp_tx': ['start','sid','dbs','dbc','fdf','syt','frames','sample','sample_valid','sample_ready','valid','ready','byte','last','busy'],
+        'syt': ['cycle','advance','data','syt','fdf','frames'],
+        'iso_rx': ['channel','sample','sample_channel','sample_valid','sample_ready','syt','done','error','busy','losses','dbc_gap'],
+        'iso_tx': ['start','channel','valid','ready','byte','last'],
         'transaction_link': [],
         'transaction': ['node_id', 'bus_reset', 'tx_valid', 'tx_ready', 'tx_byte', 'tx_last', 'busy', 'dropped'],
         'link_layer': ['selfid_phase', 'tx_valid', 'tx_ready', 'tx_byte', 'tx_last'],
@@ -63,6 +71,10 @@ def main():
     }
     dut = constructors[args.core]()
     ports = [getattr(dut, name) for name in port_names[args.core]]
+    if args.core == 'iso_rx':
+        ports.extend(getattr(dut.rx,name) for name in ['start','valid','byte','end','phy_error'])
+    if args.core == 'iso_tx':
+        ports.extend(getattr(dut.codec,name) for name in ['sid','dbs','dbc','fdf','syt','frames','sample','sample_valid','sample_ready'])
     if args.core == 'transaction_link':
         ports.extend(getattr(dut.link.phy, name) for name in ['enable', 'bus_reset', 'ctl_in', 'data_in', 'ctl_out', 'data_out', 'oe', 'lreq'])
         ports.extend([dut.link.cycle.node_id, dut.link.selfid_phase])

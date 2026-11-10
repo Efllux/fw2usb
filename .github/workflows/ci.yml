@@ -50,6 +50,11 @@ jobs:
       - run: python gateware/build.py --core rom_reader
       - run: python gateware/build.py --core transaction
       - run: python gateware/build.py --core transaction_link
+      - run: python gateware/build.py --core amdtp_rx
+      - run: python gateware/build.py --core amdtp_tx
+      - run: python gateware/build.py --core syt
+      - run: python gateware/build.py --core iso_rx
+      - run: python gateware/build.py --core iso_tx
       - run: python gateware/build.py --route
       - uses: actions/upload-artifact@v4
         with:

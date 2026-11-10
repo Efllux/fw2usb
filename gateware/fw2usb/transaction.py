@@ -29,6 +29,9 @@ class CsrBank(Elaboratable):
         self.rcode = Signal(4)
         self.bus_reset = Signal()
         self.cycle_time = Signal(32)
+        self.output_channel = Signal(6)
+        self.input_channel = Signal(6)
+        self.connected = Signal()
 
     def elaborate(self, platform):
         m = Module()
@@ -36,16 +39,20 @@ class CsrBank(Elaboratable):
         bandwidth = Signal(32,init=4915)
         high = Signal(32,init=0xffffffff)
         low = Signal(32,init=0xffffffff)
+        opcr = Signal(32,init=0x80000010)
+        ipcr = Signal(32,init=0x80000010)
+        m.d.comb += [self.output_channel.eq(opcr[16:22]),self.input_channel.eq(ipcr[16:22]),
+                     self.connected.eq((opcr[24:30] != 0) & (ipcr[24:30] != 0))]
         m.d.comb += self.ready.eq((~self.response_valid | self.response_ready) & ~self.bus_reset)
         with m.If(self.response_ready):
             m.d.sync += self.response_valid.eq(0)
         with m.If(self.bus_reset):
             m.d.sync += [manager.eq(63),bandwidth.eq(4915),high.eq(0xffffffff),low.eq(0xffffffff),
-                         self.response_valid.eq(0)]
+                         self.response_valid.eq(0),opcr.eq(0x80000010),ipcr.eq(0x80000010)]
         with m.Elif(self.valid & self.ready):
             m.d.sync += [self.response_valid.eq(1),self.rcode.eq(0),self.response_data.eq(0)]
             with m.Switch(self.address):
-                for address,register in [(0x21c,manager),(0x220,bandwidth),(0x224,high),(0x228,low)]:
+                for address,register in [(0x21c,manager),(0x220,bandwidth),(0x224,high),(0x228,low),(0x904,opcr),(0x984,ipcr)]:
                     with m.Case(0xfffff0000000+address):
                         m.d.sync += self.response_data.eq(register)
                         with m.If(self.write | (self.compare_swap & (register == self.compare))):

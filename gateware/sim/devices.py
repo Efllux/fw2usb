@@ -69,6 +69,15 @@ class BeBoB(Remote):
                                CSR+0x984: 0x80000000 | self.channels*8})
         self.fcp_responses.clear()
         self.primed = False
+        self.audio_clock = None
+
+    def audio(self, cycle, *, ppm=0, jitter_ticks=(0,)):
+        if not self.streaming:
+            return None
+        if self.audio_clock is None:
+            from sim.audio import AudioClock
+            self.audio_clock = AudioClock(channels=self.channels,ppm=ppm,jitter_ticks=jitter_ticks)
+        return self.audio_clock.next_cycle(cycle)
 
     @property
     def streaming(self):
@@ -101,6 +110,7 @@ class Dice(Remote):
         super().reset()
         self.owner = 0xffff000000000000
         self.enabled = False
+        self.audio_clock = None
         self.clock_locked = True
         self.clock = 0x020c
         self.notifications.clear()
@@ -152,6 +162,15 @@ class Dice(Remote):
             self.registers[address] = int(self.enabled)
         else:
             raise DeviceError(7)
+
+    def audio(self, cycle, *, ppm=0, jitter_ticks=(0,)):
+        if not self.enabled or not self.clock_locked:
+            return None
+        if self.audio_clock is None:
+            from sim.audio import AudioClock
+            self.audio_clock = AudioClock(rate=44100 if self.clock==0x010c else 48000,
+                                          channels=self.channels,ppm=ppm,jitter_ticks=jitter_ticks)
+        return self.audio_clock.next_cycle(cycle)
 
     def clock_settled(self):
         self.clock_locked = True
