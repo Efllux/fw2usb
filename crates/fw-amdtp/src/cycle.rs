@@ -7,6 +7,9 @@ pub const TICKS_PER_CYCLE: u32 = 3072;
 pub const CYCLES_PER_SECOND: u32 = 8000;
 pub const TICKS_PER_SECOND: u32 = TICKS_PER_CYCLE * CYCLES_PER_SECOND; // 24_576_000
 
+/// Cycles in one full 128 s cycle-timer period.
+const CYCLES_PER_WRAP: u32 = 128 * CYCLES_PER_SECOND;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CycleTime {
     pub seconds: u8, // 0..128
@@ -56,13 +59,15 @@ pub fn resolve_syt(syt: u16, reference: CycleTime) -> CycleTime {
     let syt_cycle = (syt >> 12) as u32;
     let offset = (syt & 0xFFF) as u32;
     let ref_cycles = reference.ticks() / TICKS_PER_CYCLE;
-    let mut delta = (syt_cycle + 16 - (ref_cycles & 0xF)) & 0xF; // 0..15 ahead
+    let mut delta = ((syt_cycle + 16 - (ref_cycles & 0xF)) & 0xF) as i32; // 0..15 ahead
     if delta > 12 {
         // More than 12 cycles "ahead" is really a few cycles in the past.
-        delta = delta.wrapping_sub(16);
+        delta -= 16;
     }
-    let cycles = ref_cycles.wrapping_add(delta);
-    CycleTime::from_ticks(cycles.wrapping_mul(TICKS_PER_CYCLE).wrapping_add(offset))
+    // The cycle timer wraps every 128 s = 1_024_000 cycles, which is not a power of two,
+    // so the arithmetic must be done modulo that period, not modulo 2^32.
+    let cycles = (ref_cycles as i32 + delta).rem_euclid(CYCLES_PER_WRAP as i32) as u32;
+    CycleTime::from_ticks(cycles * TICKS_PER_CYCLE + offset)
 }
 
 #[cfg(test)]
@@ -109,6 +114,34 @@ mod tests {
         };
         let t = CycleTime {
             seconds: 2,
+            cycle: 2,
+            offset: 7,
+        };
+        assert_eq!(resolve_syt(t.syt(), now), t);
+    }
+
+    #[test]
+    fn syt_resolution_across_128s_wrap() {
+        // Reference just after the wrap, SYT from just before it.
+        let now = CycleTime {
+            seconds: 0,
+            cycle: 1,
+            offset: 0,
+        };
+        let t = CycleTime {
+            seconds: 127,
+            cycle: 7999,
+            offset: 5,
+        };
+        assert_eq!(resolve_syt(t.syt(), now), t);
+        // Reference just before the wrap, SYT from just after it.
+        let now = CycleTime {
+            seconds: 127,
+            cycle: 7999,
+            offset: 0,
+        };
+        let t = CycleTime {
+            seconds: 0,
             cycle: 2,
             offset: 7,
         };
