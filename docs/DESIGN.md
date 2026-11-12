@@ -1,13 +1,13 @@
 # fw2usb: a FireWire → USB bridge with no Linux inside
 
 Goal: plug FireWire audio interfaces across BeBoB, DICE, Oxford, Fireworks, MOTU,
-RME, Digi00x, TASCAM and generic AV/C families into an M4 MacBook Air
+RME, Digi00x, TASCAM and generic AV/C families into an Apple-silicon Mac
 over **plain USB**, with no Thunderbolt dongles, no Mac mini or Raspberry Pi running Linux,
 and no kernel driver on the Mac.
 
-## Why not the earlier suggestions
+## Alternatives considered
 
-| Route from the ChatGPT/Codex chats | Problem |
+| Route | Problem |
 |---|---|
 | Wire FireWire pins to MCU GPIO | 400 Mb/s data-strobe signalling with analog arbitration. GPIO can't do it, and no clever software makes it possible |
 | Pi CM4/Pi 5 + PCIe FireWire card + UAC2 gadget | Works, but it's a whole Linux computer in the middle. Not the goal |
@@ -36,7 +36,7 @@ and no kernel driver on the Mac.
           │ USB 2.0 HS     │  ULPI PHY (USB3300) driven by the FPGA,
           │ device         │  or an XMOS/STM32H7 fed over TDM
           └───────┬────────┘
-                  ▼ USB-C → MacBook Air
+                  ▼ USB-C → Mac
 ```
 
 The key insight: **you don't have to implement the physical layer.** The PHY chip turns the
