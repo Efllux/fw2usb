@@ -182,7 +182,7 @@ is not implemented or claimed by this prototype.
 ## Power, ESD and isolation
 
 **Leave cable VP unconnected.** Segregate its connector pad and preserve clearance
-for the owner's33 V design envelope. [TI SLVA449 §1](https://www.ti.com/lit/pdf/slva449)
+for this design's 33 V envelope. [TI SLVA449 §1](https://www.ti.com/lit/pdf/slva449)
 describes8–30 V IEEE1394a cable power and late-ground damage.33 V is our design
 margin, not a replacement for the cited standard limit. Leaving VP open does
 not prevent a faulty connector/cable or late signal-ground contact from imposing
