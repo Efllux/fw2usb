@@ -68,7 +68,8 @@ pub fn am824_peak_payload(pcm: u8, midi_slots: u8, rate: Sfc) -> Option<u32> {
     if pcm > 32 || pcm.checked_add(midi_slots)? == 0 {
         return None;
     }
-    Some(PacketBuilder::new(0, pcm, midi_slots, rate).max_len() as u32)
+    let builder = PacketBuilder::new(0, pcm, midi_slots, rate).ok()?;
+    Some(builder.max_len() as u32)
 }
 
 #[cfg(test)]
