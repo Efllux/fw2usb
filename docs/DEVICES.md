@@ -3,9 +3,6 @@
 See the [family research catalog](devices/README.md) and [model registry](devices/models.csv)
 for broad protocol coverage, pinned sources and explicit verification gaps.
 
-See the [family research catalog](devices/README.md) and [model registry](devices/models.csv)
-for broad protocol coverage, pinned sources and explicit verification gaps.
-
 Devices we want to support, and who can test them. **Add yours via a "Device report" issue or a PR.**
 
 Legend: 🎯 target · 🧪 in progress · ✅ works · ❓ unknown
