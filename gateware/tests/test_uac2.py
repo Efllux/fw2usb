@@ -22,6 +22,16 @@ class AudioTest(unittest.TestCase):
         self.assertEqual(entities,[1,10,11,12,13]);self.assertEqual(len(set(entities)),len(entities))
         self.assertEqual(ends,[(1,1,2,5,42),(1,1,0x83,17,4),(2,1,0x82,5,42),(3,0,1,2,512),(3,0,0x81,2,512)])
 
+    def test_terminal_types_are_line_connectors(self):
+        data=bytes(descriptors().get_descriptor_bytes(2,0));pos=9;types={};ac=True
+        interface_is_ac=lambda *_:ac
+        while pos<len(data):
+            n=data[pos];d=data[pos:pos+n]
+            if d[1]==4:ac=d[2]==0
+            if d[1]==0x24 and interface_is_ac(pos,data) and d[2] in (2,3):types[d[3]]=int.from_bytes(d[4:6],'little')
+            pos+=n
+        self.assertEqual(types,{10:0x101,11:0x603,12:0x603,13:0x101})
+
     def test_clock_control_and_alt_gate(self):
         class Harness(Elaboratable):
             def __init__(self):self.h=AudioControl()

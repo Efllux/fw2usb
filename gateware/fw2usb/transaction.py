@@ -58,7 +58,11 @@ class CsrBank(Elaboratable):
                 for address,register in [(0x21c,manager),(0x220,bandwidth),(0x224,high),(0x228,low),(0x904,opcr),(0x984,ipcr)]:
                     with m.Case(0xfffff0000000+address):
                         m.d.sync += self.response_data.eq(register)
-                        with m.If(self.write | (self.compare_swap & (register == self.compare))):
+                        # IRM registers (IEEE 1394-2008 8.3.2.3) support only quadlet read and lock
+                        # compare_swap; PCRs (IEC 61883-1) change only by compare_swap. Plain writes: type error.
+                        with m.If(self.write):
+                            m.d.sync += self.rcode.eq(6)
+                        with m.Elif(self.compare_swap & (register == self.compare)):
                             m.d.sync += register.eq(self.data)
                 with m.Case(0xfffff0000200):
                     m.d.sync += self.response_data.eq(self.cycle_time)

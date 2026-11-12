@@ -37,6 +37,28 @@ class AmdtpTest(unittest.TestCase):
         sim.add_testbench(bench)
         sim.run()
 
+    def test_no_data_packet_with_payload_is_not_audio(self):
+        # FDF=0xFF with data blocks present: no samples, no gap report, expected DBC untouched.
+        def cip(dbc,fdf,blocks):
+            body=b''.join(bytes([0x40,0,0,b+1])+bytes([0x40,0,0,b+2]) for b in range(blocks))
+            return bytes([1,2,0,dbc,0x90,fdf,0xff,0xff])+body
+        dut=AmdtpReceiver();sim=Simulator(dut);sim.add_clock(1/49_152_000)
+        async def bench(ctx):
+            async def run(payload):
+                ctx.set(dut.start,1);await ctx.tick();ctx.set(dut.start,0);got=0;gap=0
+                for byte in payload:
+                    ctx.set(dut.valid,1);ctx.set(dut.byte,byte);await ctx.tick()
+                    got+=ctx.get(dut.sample_valid);gap+=ctx.get(dut.dbc_gap)
+                ctx.set(dut.valid,0);ctx.set(dut.end,1);await ctx.tick();ctx.set(dut.end,0)
+                got+=ctx.get(dut.sample_valid);gap+=ctx.get(dut.dbc_gap)
+                self.assertFalse(ctx.get(dut.error));return got,gap
+            self.assertEqual(await run(cip(0,2,2)),(4,0))     # data: 2 blocks, next DBC 2
+            self.assertEqual(await run(cip(2,255,3)),(0,0))   # NO-DATA with payload, DBC of next data packet
+            self.assertEqual(await run(cip(2,2,2)),(4,0))     # would gap (expected 5) if NO-DATA advanced DBC
+            self.assertEqual(await run(cip(7,255,1)),(0,0))   # NO-DATA never reports a gap
+            self.assertEqual(await run(cip(4,2,1)),(2,0))     # expected still 4
+        sim.add_testbench(bench);sim.run()
+
     def test_tx_matches_shared_rust_payloads(self):
         dut=AmdtpTransmitter()
         sim=Simulator(dut)
