@@ -1,5 +1,12 @@
-"""Emit RTLIL, synthesize ECP5 and optionally route the safe board smoke design."""
+"""Emit RTLIL, synthesize ECP5 and optionally route.
+
+--core X          synthesize one core (no routing)
+--route           route the safe 25 MHz board smoke design
+--timing          place and route the complete raw bridge (fw2usb.timing_top) at
+                  the real clock frequencies and fail unless every clock meets it
+"""
 import argparse
+import json
 from pathlib import Path
 import subprocess
 from amaranth.back import rtlil
@@ -29,14 +36,81 @@ from fw2usb.raw_iso_tx import RawIsoTransmitter
 from fw2usb.uac2 import AudioUsbDevice
 
 
+DEVICE = ['--85k', '--package', 'CABGA381', '--speed', '6']
+
+
+def drop_constant_m_pins(path):
+    """Work around a nextpnr-ecp5 packer fault (seen with nextpnr 0.11.1-89).
+
+    Yosys ties the unused M input of asynchronous-reset TRELLIS_FF cells to
+    constant 0. When nextpnr then moves such a cell's D input onto M it leaves
+    the constant net pointing at the pin and aborts with "INTERNAL CHECK
+    FAILED". An unconnected M means exactly the same thing, so remove it.
+    """
+    design = json.loads(path.read_text())
+    for module in design['modules'].values():
+        for cell in module['cells'].values():
+            if cell['type'] == 'TRELLIS_FF' and cell['connections'].get('M') in (['0'], ['x']):
+                del cell['connections']['M']
+                cell.get('port_directions', {}).pop('M', None)
+    path.write_text(json.dumps(design))
+
+
+def timing(root, out, seed):
+    """Route fw2usb.timing_top and enforce its clock constraints."""
+    from fw2usb.timing_top import TimingTop, CLOCKS_MHZ
+    top = TimingTop()
+    (out / 'timing.il').write_text(rtlil.convert(top, name='timing', ports=top.ports()))
+    subprocess.run(['yosys', '-q', '-l', 'timing_synth.log', '-p',
+                    'read_rtlil timing.il; synth_ecp5 -top timing -json timing.json; check -assert'],
+                   cwd=out, check=True)
+    drop_constant_m_pins(out / 'timing.json')
+    (out / 'timing.lpf').write_text(''.join(
+        f'FREQUENCY PORT "{name}" {mhz} MHZ;\n' for name, mhz in CLOCKS_MHZ.items()))
+    # No --timing-allow-fail: nextpnr itself exits non-zero on a violated clock.
+    subprocess.run(['nextpnr-ecp5', *DEVICE, '--json', 'timing.json', '--lpf', 'timing.lpf',
+                    '--lpf-allow-unconstrained', '--seed', str(seed), '--report', 'timing_report.json',
+                    '--log', 'timing_pnr.log', '--quiet'], cwd=out, check=True)
+    report = json.loads((out / 'timing_report.json').read_text())
+    achieved = {}
+    for net, result in report['fmax'].items():
+        for name in CLOCKS_MHZ:
+            if net.startswith(name):
+                achieved[name] = min(result['achieved'], achieved.get(name, float('inf')))
+    failed = False
+    for name, mhz in CLOCKS_MHZ.items():
+        if name not in achieved:
+            print(f'{name}: clock missing from the timing report')
+            failed = True
+            continue
+        ok = achieved[name] >= mhz
+        failed |= not ok
+        print(f'{name}: {achieved[name]:.2f} MHz achieved, {mhz} MHz required: {"PASS" if ok else "FAIL"}')
+    use = report['utilization']
+    for label, cell in [('LUT4', 'TRELLIS_COMB'), ('FF', 'TRELLIS_FF'), ('EBR', 'DP16KD'),
+                        ('DSP', 'MULT18X18D'), ('I/O-cell FF', 'IOLOGIC')]:
+        print(f'{label}: {use[cell]["used"]}/{use[cell]["available"]}')
+    # Every PHY-LINK pin must have got its flip-flops in the I/O cell:
+    # CTL[0:1] and D[0:7] share one IOLOGIC each for in/out/tristate, plus LREQ.
+    if use['IOLOGIC']['used'] < 11:
+        print('PHY-LINK flip-flops were not packed into the I/O cells')
+        failed = True
+    if failed:
+        raise SystemExit(1)
+
+
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--route', action='store_true')
+    parser.add_argument('--timing', action='store_true')
+    parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive', 'transmit', 'phy_link', 'crc32', 'cycle', 'selfid', 'packet_rx', 'packet_tx', 'ack', 'cycle_master', 'link_layer', 'csr', 'rom_reader', 'transaction', 'transaction_link', 'amdtp_rx', 'amdtp_tx', 'syt', 'iso_rx', 'iso_tx', 'usb_raw', 'raw_iso', 'frame_encoder', 'frame_decoder', 'async_request', 'raw_worker', 'usb_bridge', 'usb_audio','raw_iso_tx','cycle_follower'], default='smoke')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
     out = root / 'build'
     out.mkdir(exist_ok=True)
+    if args.timing:
+        return timing(root, out, args.seed)
     if args.route and args.core != 'smoke':
         parser.error('only the safe smoke image has board IO constraints')
     constructors = {'smoke': Heartbeat, 'lreq': LreqSerializer,
@@ -136,7 +210,7 @@ def main():
                     f'read_rtlil {args.core}.il; synth_ecp5 -top {args.core} -json {args.core}.json; check -assert'],
                    cwd=out, check=True)
     if args.route:
-        subprocess.run(['nextpnr-ecp5', '--85k', '--package', 'CABGA381', '--speed', '6',
+        subprocess.run(['nextpnr-ecp5', *DEVICE,
                         '--json', 'smoke.json', '--lpf', str(root / 'boards/ulx3s-smoke.lpf'),
                         '--textcfg', 'smoke.config', '--freq', '25', '--seed', '1'],
                        cwd=out, check=True)
