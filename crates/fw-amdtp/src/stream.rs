@@ -5,7 +5,7 @@
 //! advancing the "next event" time by `syt_interval / rate` seconds.
 
 use crate::am824;
-use crate::cip::{CipHeader, Sfc, FDF_NO_DATA, FMT_AM824, SYT_NO_INFO};
+use crate::cip::{CipError, CipHeader, Sfc, FDF_NO_DATA, FMT_AM824, SYT_NO_INFO};
 use crate::cycle::{CycleTime, TICKS_PER_CYCLE, TICKS_PER_SECOND};
 
 /// Default presentation delay added to outgoing SYT (same value Linux ALSA uses: ~479 µs).
@@ -178,13 +178,24 @@ impl PacketParser {
         &mut self,
         payload: &[u8],
         sink: &mut dyn FnMut(usize, usize, i32),
-    ) -> Result<RxEvent, crate::cip::CipError> {
+    ) -> Result<RxEvent, CipError> {
         let hdr = CipHeader::decode(payload)?;
+        if hdr.fmt != FMT_AM824 {
+            return Err(CipError::UnsupportedFormat);
+        }
+        // NO-DATA: ignore any (dummy) payload. In blocking mode its DBC is that of the
+        // next data packet, so it neither counts as a gap nor advances the expected DBC.
+        if hdr.is_no_data() {
+            return Ok(RxEvent::NoData);
+        }
         let data = &payload[CipHeader::LEN..];
         if hdr.dbs == 0 || data.is_empty() {
             return Ok(RxEvent::NoData);
         }
         let block = hdr.dbs as usize * 4;
+        if data.len() % block != 0 {
+            return Err(CipError::BadPayloadLength);
+        }
         let frames = data.len() / block;
         let dbc_gap = matches!(self.expected_dbc, Some(e) if e != hdr.dbc);
         if dbc_gap {
@@ -260,6 +271,106 @@ mod tests {
                 CycleSlot::Data { offset: 2048 },
                 CycleSlot::NoData
             ]
+        );
+    }
+
+    fn packet(
+        fmt: u8,
+        fdf: u8,
+        dbs: u8,
+        dbc: u8,
+        syt: u16,
+        blocks: usize,
+        extra: usize,
+    ) -> ([u8; 128], usize) {
+        let mut b = [0u8; 128];
+        let h = CipHeader {
+            sid: 1,
+            dbs,
+            dbc,
+            fmt,
+            fdf,
+            syt,
+        };
+        h.encode((&mut b[..8]).try_into().unwrap());
+        let n = 8 + blocks * dbs as usize * 4 + extra;
+        for q in b[8..n].chunks_mut(4) {
+            if q.len() == 4 {
+                q.copy_from_slice(&am824::encode_audio(0x1234).to_be_bytes());
+            }
+        }
+        (b, n)
+    }
+
+    #[test]
+    fn no_data_with_dummy_payload_is_ignored() {
+        let mut p = PacketParser::new();
+        let mut n = 0;
+        let (b, len) = packet(FMT_AM824, 0x02, 2, 0, 0x1000, 8, 0);
+        assert!(matches!(
+            p.parse(&b[..len], &mut |_, _, _| n += 1),
+            Ok(RxEvent::Data { frames: 8, .. })
+        ));
+        assert_eq!(n, 16);
+        // NO-DATA carries the DBC of the next data packet (8) and a dummy payload.
+        n = 0;
+        let (b, len) = packet(FMT_AM824, FDF_NO_DATA, 2, 8, SYT_NO_INFO, 8, 0);
+        assert_eq!(
+            p.parse(&b[..len], &mut |_, _, _| n += 1),
+            Ok(RxEvent::NoData)
+        );
+        assert_eq!(n, 0);
+        // Next data packet at DBC 8: no gap, and the NO-DATA did not advance expected DBC.
+        let (b, len) = packet(FMT_AM824, 0x02, 2, 8, 0x2000, 8, 0);
+        assert!(matches!(
+            p.parse(&b[..len], &mut |_, _, _| {}),
+            Ok(RxEvent::Data { dbc_gap: false, .. })
+        ));
+        assert_eq!(p.discontinuities, 0);
+    }
+
+    #[test]
+    fn no_data_does_not_hide_or_cause_gaps() {
+        let mut p = PacketParser::new();
+        let (b, len) = packet(FMT_AM824, 0x02, 2, 0, 0x1000, 8, 0);
+        p.parse(&b[..len], &mut |_, _, _| {}).unwrap();
+        // NO-DATA with a stale/odd DBC must not count as a discontinuity either.
+        let (b, len) = packet(FMT_AM824, FDF_NO_DATA, 2, 99, SYT_NO_INFO, 0, 0);
+        assert_eq!(p.parse(&b[..len], &mut |_, _, _| {}), Ok(RxEvent::NoData));
+        assert_eq!(p.discontinuities, 0);
+    }
+
+    #[test]
+    fn data_packet_without_timestamp_is_data() {
+        let mut p = PacketParser::new();
+        let (b, len) = packet(FMT_AM824, 0x02, 2, 0, SYT_NO_INFO, 8, 0);
+        assert_eq!(
+            p.parse(&b[..len], &mut |_, _, _| {}),
+            Ok(RxEvent::Data {
+                frames: 8,
+                syt: None,
+                dbc_gap: false
+            })
+        );
+    }
+
+    #[test]
+    fn rejects_non_am824_fmt() {
+        let mut p = PacketParser::new();
+        let (b, len) = packet(0x00, 0x02, 2, 0, 0x1000, 8, 0); // DV
+        assert_eq!(
+            p.parse(&b[..len], &mut |_, _, _| panic!("no samples")),
+            Err(crate::cip::CipError::UnsupportedFormat)
+        );
+    }
+
+    #[test]
+    fn rejects_partial_data_block() {
+        let mut p = PacketParser::new();
+        let (b, len) = packet(FMT_AM824, 0x02, 2, 0, 0x1000, 8, 4);
+        assert_eq!(
+            p.parse(&b[..len], &mut |_, _, _| panic!("no samples")),
+            Err(crate::cip::CipError::BadPayloadLength)
         );
     }
 
