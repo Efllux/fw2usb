@@ -21,8 +21,8 @@ def descriptors():
         x.iManufacturer='fw2usb development';x.iProduct='fw2usb experimental audio';x.bNumConfigurations=1
     ac=(bytes([8,0x24,10,1,0,5,0,0])+ # external clock, frequency/validity RO
         struct.pack('<BBBBHBBBIBHB',17,0x24,2,10,0x101,0,1,2,3,0,0,0)+
-        struct.pack('<BBBBHBBBHB',12,0x24,3,11,0x301,0,10,1,0,0)+
-        struct.pack('<BBBBHBBBIBHB',17,0x24,2,12,0x301,0,1,2,3,0,0,0)+
+        struct.pack('<BBBBHBBBHB',12,0x24,3,11,0x603,0,10,1,0,0)+
+        struct.pack('<BBBBHBBBIBHB',17,0x24,2,12,0x603,0,1,2,3,0,0,0)+
         struct.pack('<BBBBHBBBHB',12,0x24,3,13,0x101,0,12,1,0,0))
     ac=struct.pack('<BBBHBHB',9,0x24,1,0x200,8,len(ac)+9,0)+ac
     body=bytes([8,11,0,3,1,0,0x20,0])+bytes([9,4,0,0,0,1,1,0x20,0])+ac

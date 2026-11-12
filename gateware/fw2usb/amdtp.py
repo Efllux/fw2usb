@@ -29,10 +29,11 @@ class AmdtpReceiver(Elaboratable):
         invalid = Signal()
         expected = Signal(8)
         known = Signal()
+        nodata = Signal()  # FDF==0xFF: NO-DATA packet, any payload is not audio and carries the next data packet's DBC
         word = Cat(self.byte,shift[:24])
         m.d.sync += [self.sample_valid.eq(0),self.error.eq(0),self.dbc_gap.eq(0)]
         with m.If(self.start):
-            m.d.sync += [count.eq(0),slot.eq(0),frames.eq(0),invalid.eq(0)]
+            m.d.sync += [count.eq(0),slot.eq(0),frames.eq(0),invalid.eq(0),nodata.eq(0)]
         with m.Elif(self.valid):
             m.d.sync += [count.eq(count+1),shift.eq(word)]
             with m.Switch(count):
@@ -50,6 +51,7 @@ class AmdtpReceiver(Elaboratable):
                     with m.If(self.byte != 0x90):
                         m.d.sync += invalid.eq(1)
                 with m.Case(5):
+                    m.d.sync += nodata.eq(self.byte == 255)
                     with m.If((self.byte != 255) & (self.byte > 6)):
                         m.d.sync += invalid.eq(1)
                 with m.Case(6):
@@ -61,8 +63,8 @@ class AmdtpReceiver(Elaboratable):
                     m.d.sync += invalid.eq(1)
                 with m.Else():
                     with m.If(count == 11):
-                        m.d.sync += self.dbc_gap.eq(known & (expected != self.dbc))
-                    with m.If((word[24:32] >= 0x40) & (word[24:32] <= 0x43)):
+                        m.d.sync += self.dbc_gap.eq(known & ~nodata & (expected != self.dbc))
+                    with m.If(~nodata & (word[24:32] >= 0x40) & (word[24:32] <= 0x43)):
                         m.d.sync += [self.sample_valid.eq(1),self.sample.eq(word[:24]),
                                      self.channel.eq(slot),self.frame.eq(frames)]
                     with m.If(slot+1 == self.dbs):
@@ -71,7 +73,7 @@ class AmdtpReceiver(Elaboratable):
                         m.d.sync += slot.eq(slot+1)
         with m.If(self.end):
             m.d.sync += self.error.eq(invalid | (count < 8) | (count[:2] != 0) | (slot != 0))
-            with m.If((frames != 0) & ~invalid & (slot == 0) & (count[:2] == 0)):
+            with m.If((frames != 0) & ~nodata & ~invalid & (slot == 0) & (count[:2] == 0)):
                 m.d.sync += [known.eq(1),expected.eq(self.dbc+frames)]
         return m
 

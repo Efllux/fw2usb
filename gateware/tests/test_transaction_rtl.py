@@ -198,6 +198,28 @@ class TransactionRtlTest(unittest.TestCase):
         sim.add_testbench(bench)
         sim.run()
 
+    def test_config_rom_bus_info_capabilities(self):
+        from fw2usb.transaction import rom_words
+        options=rom_words()[2]
+        self.assertEqual(rom_words()[1],0x31333934)
+        self.assertEqual(options,0xe0647102)
+        self.assertEqual(options>>27,0b11100)     # irmc, cmc, isc set; bmc, pmc clear
+        self.assertEqual((options>>12)&15,7)      # max_rec 256 B == responder capacity
+        self.assertEqual(options&7,2)             # S400
+
+    def test_irm_and_pcr_registers_reject_plain_writes(self):
+        dut=CsrBank();sim=Simulator(dut);sim.add_clock(1/49_152_000)
+        async def bench(ctx):
+            ctx.set(dut.response_ready,1);ctx.set(dut.valid,1)
+            for offset in (0x21c,0x220,0x224,0x228,0x904,0x984):
+                ctx.set(dut.address,CSR+offset);ctx.set(dut.compare_swap,0);ctx.set(dut.write,0);await ctx.tick()
+                before=ctx.get(dut.response_data)
+                ctx.set(dut.write,1);ctx.set(dut.data,0x12345678);await ctx.tick()
+                self.assertEqual(ctx.get(dut.rcode),6,hex(offset))
+                ctx.set(dut.write,0);await ctx.tick()
+                self.assertEqual((ctx.get(dut.rcode),ctx.get(dut.response_data)),(0,before),hex(offset))
+        sim.add_testbench(bench);sim.run()
+
     def test_cmp_hardware_pcr_compare_swap_and_reset(self):
         dut=CsrBank();sim=Simulator(dut);sim.add_clock(1/49_152_000)
         async def bench(ctx):
