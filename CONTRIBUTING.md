@@ -4,7 +4,7 @@ Thanks for helping bring FireWire back. 🔥
 
 ## Ground rules
 - Be kind and assume good faith. We follow the
-  [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct/).
+  [Contributor Covenant](CODE_OF_CONDUCT.md).
 - **Never paste vendor firmware, driver binaries or NDA documents** into the repo. Write
   clean-room descriptions of behaviour instead (what goes on the bus, what it means). Public
   datasheets, standards references and open-source code (with compatible licences) are fine
@@ -18,7 +18,7 @@ Thanks for helping bring FireWire back. 🔥
 Open a **Device report** issue with the exact model, chipset (BeBoB / DICE / Oxford / other)
 if known, and what you can test. If you still have a machine with working FireWire
 (old Mac, Linux box), traffic captures are gold:
-- Linux: `firewire-ohci` + `nosy` or `wireshark` with the `firewire` dissector
+- Linux: `firewire-ohci` + `nosy` (needs a PCILynx-based FireWire card) or `wireshark` with the `firewire` dissector
 - Kernel logs of `snd-bebob` / `snd-dice` / `snd-firewire-*` when the device is attached
 - Config ROM dump: `/sys/bus/firewire/devices/fw*/config_rom`
 
@@ -26,7 +26,7 @@ if known, and what you can test. If you still have a machine with working FireWi
 - Rust: `cargo fmt`, `cargo clippy -- -D warnings`, `cargo test` must pass.
 - `crates/*` used by firmware stay `no_std` and allocation-free.
 - Every protocol detail gets a unit test with a reference (spec section, FFADO/ALSA source
-  line, or a capture in `captures/`).
+  line, or a capture in `captures/`; this directory will be created when the first capture is contributed).
 - Gateware: include a testbench; simulate against `fw-amdtp` vectors where possible.
 
 ### 3. Hardware
