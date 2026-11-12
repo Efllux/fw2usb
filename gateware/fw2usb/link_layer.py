@@ -52,18 +52,28 @@ class LinkLayer(Elaboratable):
         ack_valid = Signal()
         ack_byte = Signal(8)
         choose_ack = Signal()
+        # With registered pins the PHY's earliest grant reaches the transmit
+        # adapter in the same cycle as the receive adapter's ``end``, and the
+        # adapter takes its first byte in that cycle. The ACK code is therefore
+        # decided combinationally from flags the packet receiver registered
+        # while the bytes arrived; the address match is registered at decode.
+        addressed = Signal()
+        broadcast = Signal()
+        with m.If(self.packet.header_decoded):
+            m.d.sync += [addressed.eq(self.packet.destination == self.cycle.node_id),
+                         broadcast.eq(self.packet.destination[:6] == 63)]
         m.d.comb += [
             choose_ack.eq(ack_wanted),
-            ack.end.eq(self.packet.good | self.packet.bad),
-            ack.addressed.eq(self.packet.destination == self.cycle.node_id),
-            ack.broadcast.eq(self.packet.destination[:6] == 63),
-            ack.header_good.eq(self.packet.header_good), ack.data_good.eq(self.packet.good),
+            ack.end.eq(self.packet.good_now | self.packet.bad_now),
+            ack.addressed.eq(addressed),
+            ack.broadcast.eq(broadcast),
+            ack.header_good.eq(self.packet.header_good), ack.data_good.eq(self.packet.good_now),
             ack.tcode.eq(self.packet.tcode),ack.capacity.eq(self.capacity)]
         with m.If(self.packet.header_decoded & (self.packet.destination == self.cycle.node_id) &
                   (self.packet.destination[:6] != 63) & (self.packet.tcode != 8) & (self.packet.tcode != 10)):
             m.d.sync += ack_wanted.eq(1)
-        with m.If(ack.valid):
-            m.d.sync += [ack_valid.eq(1), ack_byte.eq(ack.byte)]
+        with m.If(ack.now_valid):
+            m.d.sync += [ack_valid.eq(1), ack_byte.eq(ack.now_byte)]
         with m.If(self.phy.rx.start):
             m.d.sync += ack_valid.eq(0)
         with m.If(self.phy.tx.done & ack_owned):
@@ -78,8 +88,8 @@ class LinkLayer(Elaboratable):
                      self.request.ready.eq(self.phy.request.ready & ~choose_cycle & ~choose_ack),
                      self.cycle.grant.eq(self.phy.tx.grant & cycle_owned),
                      self.cycle.ready.eq(self.phy.tx.ready & cycle_owned),
-                     self.phy.tx.valid.eq(Mux(ack_owned,ack_valid | ack.valid,Mux(cycle_owned,self.cycle.valid,self.tx_valid))),
-                     self.phy.tx.byte.eq(Mux(ack_owned,Mux(ack.valid,ack.byte,ack_byte),Mux(cycle_owned,self.cycle.byte,self.tx_byte))),
+                     self.phy.tx.valid.eq(Mux(ack_owned,ack_valid | ack.now_valid,Mux(cycle_owned,self.cycle.valid,self.tx_valid))),
+                     self.phy.tx.byte.eq(Mux(ack_owned,Mux(ack.now_valid,ack.now_byte,ack_byte),Mux(cycle_owned,self.cycle.byte,self.tx_byte))),
                      self.phy.tx.last.eq(Mux(ack_owned,1,Mux(cycle_owned,self.cycle.last,self.tx_last))),
                      self.tx_ready.eq(self.phy.tx.ready & ~cycle_owned & ~ack_owned),
                      self.user_grant.eq(self.phy.tx.grant & ~cycle_owned & ~ack_owned),

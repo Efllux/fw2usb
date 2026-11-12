@@ -29,12 +29,18 @@ class PhyLinkTest(unittest.TestCase):
             ctx.set(dut.ctl_in, 3)
             phy.tick()
             await ctx.tick()
+            # PHY turnaround idle. The grant is in the input flip-flops now and
+            # the prebuffered byte is taken in this cycle, so that the link's
+            # registered outputs drive the very next cycle (Fig 20).
             ctx.set(dut.ctl_in, 0)
-            phy.tick()
-            await ctx.tick()
             ctx.set(dut.tx.valid, 1)
             ctx.set(dut.tx.byte, 0xa5)
             ctx.set(dut.tx.last, 1)
+            self.assertFalse(ctx.get(dut.oe))
+            self.assertEqual(phy.tick(), 0)
+            await ctx.tick()
+            self.assertTrue(ctx.get(dut.oe))
+            self.assertEqual(ctx.get(dut.ctl_out), 2)
             # Echoing our output on shared CTL must not start our RX decoder.
             for _ in range(5):
                 oe = ctx.get(dut.oe)
@@ -62,6 +68,11 @@ class PhyLinkTest(unittest.TestCase):
                 ctx.set(dut.ctl_in, 1)
                 ctx.set(dut.data_in, pair << 6)
                 await ctx.tick()
+            # The eighth pair is only in the input flip-flops so far; the
+            # status receiver completes the register one cycle later.
+            self.assertFalse(ctx.get(dut.status.register_valid))
+            ctx.set(dut.ctl_in, 0)
+            await ctx.tick()
             self.assertEqual(ctx.get(dut.status.data), 0xe2)
             self.assertTrue(ctx.get(dut.status.register_valid))
             ctx.set(dut.enable, 0)
