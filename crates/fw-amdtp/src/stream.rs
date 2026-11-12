@@ -5,10 +5,17 @@
 //! advancing the "next event" time by `syt_interval / rate` seconds.
 
 use crate::am824;
-use crate::cip::{CipHeader, Sfc, FDF_NO_DATA, FMT_AM824, SYT_NO_INFO};
+use crate::cip::{CipError, CipHeader, Sfc, FDF_NO_DATA, FMT_AM824, SYT_NO_INFO};
 use crate::cycle::{CycleTime, TICKS_PER_CYCLE, TICKS_PER_SECOND};
 
-/// Default presentation delay added to outgoing SYT (same value Linux ALSA uses: ~479 µs).
+/// Default presentation delay added to outgoing SYT: 0x2E00 ticks (~479 µs).
+///
+/// This is the same number as `TRANSFER_DELAY_TICKS` in Linux
+/// `sound/firewire/amdtp-stream.c`, but ALSA does not use it directly: in
+/// `amdtp_stream_set_parameters()` it sets `transfer_delay = TRANSFER_DELAY_TICKS -
+/// TICKS_PER_CYCLE` (one cycle less, 0x2200) and, for `CIP_BLOCKING` streams, adds one
+/// SYT interval (`TICKS_PER_SECOND * syt_interval / rate`, e.g. 4096 ticks at 48 kHz,
+/// giving 0x3200). So the effective ALSA delay differs from this constant.
 pub const TRANSFER_DELAY_TICKS: u32 = 0x2E00;
 
 /// Decides, per isochronous cycle, whether a data packet is sent and with which SYT.
@@ -63,6 +70,19 @@ impl SytScheduler {
     }
 }
 
+/// Maximum number of PCM channels per data block a `PacketBuilder` can carry.
+pub const MAX_PCM_CHANNELS: usize = 32;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BuildError {
+    /// `out` is shorter than `PacketBuilder::max_len()`.
+    BufferTooSmall,
+    /// More than `MAX_PCM_CHANNELS` PCM channels requested.
+    TooManyChannels,
+    /// `pcm_channels + midi_slots` does not fit the 8-bit DBS field.
+    DbsOverflow,
+}
+
 /// Builds outgoing (host → device) AMDTP packets.
 pub struct PacketBuilder {
     pub sid: u8,
@@ -75,14 +95,20 @@ pub struct PacketBuilder {
 }
 
 impl PacketBuilder {
-    pub fn new(sid: u8, pcm_channels: u8, midi_slots: u8, sfc: Sfc) -> Self {
-        PacketBuilder {
+    pub fn new(sid: u8, pcm_channels: u8, midi_slots: u8, sfc: Sfc) -> Result<Self, BuildError> {
+        if pcm_channels as usize > MAX_PCM_CHANNELS {
+            return Err(BuildError::TooManyChannels);
+        }
+        let dbs = pcm_channels
+            .checked_add(midi_slots)
+            .ok_or(BuildError::DbsOverflow)?;
+        Ok(PacketBuilder {
             sid,
-            dbs: pcm_channels + midi_slots,
+            dbs,
             pcm_channels,
             dbc: 0,
             sched: SytScheduler::new(sfc),
-        }
+        })
     }
 
     pub fn frames_per_data_packet(&self) -> usize {
@@ -97,13 +123,20 @@ impl PacketBuilder {
     /// Build the packet for isochronous cycle `now`.
     ///
     /// `frames` supplies interleaved 24-bit samples (`pcm_channels` per frame) and is
-    /// only consumed when this cycle carries data. Returns (bytes written, frames consumed).
+    /// only consumed when this cycle carries data. Returns (bytes written, frames actually
+    /// taken from `frames`); on underrun silence is substituted and not counted.
+    ///
+    /// `out` must be at least `max_len()` bytes, otherwise `BufferTooSmall` is returned and
+    /// no state (schedule, DBC, source) is touched.
     pub fn build(
         &mut self,
         now: CycleTime,
-        frames: &mut dyn FnMut() -> Option<[i32; 32]>,
+        frames: &mut dyn FnMut() -> Option<[i32; MAX_PCM_CHANNELS]>,
         out: &mut [u8],
-    ) -> (usize, usize) {
+    ) -> Result<(usize, usize), BuildError> {
+        if out.len() < self.max_len() {
+            return Err(BuildError::BufferTooSmall);
+        }
         let slot = self.sched.next_cycle();
         let mut hdr = CipHeader {
             sid: self.sid,
@@ -115,7 +148,7 @@ impl PacketBuilder {
         };
         let CycleSlot::Data { offset } = slot else {
             hdr.encode((&mut out[..8]).try_into().unwrap());
-            return (8, 0);
+            return Ok((8, 0));
         };
         let cycle_start = now.ticks() - now.offset as u32;
         let syt_time = CycleTime::from_ticks(cycle_start + offset as u32 + TRANSFER_DELAY_TICKS);
@@ -125,8 +158,16 @@ impl PacketBuilder {
 
         let n = self.frames_per_data_packet();
         let mut pos = 8;
+        let mut taken = 0;
         for _ in 0..n {
-            let frame = frames().unwrap_or([0; 32]); // underrun → silence, keep the stream alive
+            // Underrun → silence, keep the stream alive.
+            let frame = match frames() {
+                Some(f) => {
+                    taken += 1;
+                    f
+                }
+                None => [0; MAX_PCM_CHANNELS],
+            };
             let pcm = frame
                 .iter()
                 .take(self.pcm_channels as usize)
@@ -138,7 +179,7 @@ impl PacketBuilder {
             }
         }
         self.dbc = self.dbc.wrapping_add(n as u8);
-        (pos, n)
+        Ok((pos, taken))
     }
 }
 
@@ -178,13 +219,24 @@ impl PacketParser {
         &mut self,
         payload: &[u8],
         sink: &mut dyn FnMut(usize, usize, i32),
-    ) -> Result<RxEvent, crate::cip::CipError> {
+    ) -> Result<RxEvent, CipError> {
         let hdr = CipHeader::decode(payload)?;
+        if hdr.fmt != FMT_AM824 {
+            return Err(CipError::UnsupportedFormat);
+        }
+        // NO-DATA: ignore any (dummy) payload. In blocking mode its DBC is that of the
+        // next data packet, so it neither counts as a gap nor advances the expected DBC.
+        if hdr.is_no_data() {
+            return Ok(RxEvent::NoData);
+        }
         let data = &payload[CipHeader::LEN..];
         if hdr.dbs == 0 || data.is_empty() {
             return Ok(RxEvent::NoData);
         }
         let block = hdr.dbs as usize * 4;
+        if !data.len().is_multiple_of(block) {
+            return Err(CipError::BadPayloadLength);
+        }
         let frames = data.len() / block;
         let dbc_gap = matches!(self.expected_dbc, Some(e) if e != hdr.dbc);
         if dbc_gap {
@@ -263,9 +315,202 @@ mod tests {
         );
     }
 
+    fn packet(
+        fmt: u8,
+        fdf: u8,
+        dbs: u8,
+        dbc: u8,
+        syt: u16,
+        blocks: usize,
+        extra: usize,
+    ) -> ([u8; 128], usize) {
+        let mut b = [0u8; 128];
+        let h = CipHeader {
+            sid: 1,
+            dbs,
+            dbc,
+            fmt,
+            fdf,
+            syt,
+        };
+        h.encode((&mut b[..8]).try_into().unwrap());
+        let n = 8 + blocks * dbs as usize * 4 + extra;
+        for q in b[8..n].chunks_mut(4) {
+            if q.len() == 4 {
+                q.copy_from_slice(&am824::encode_audio(0x1234).to_be_bytes());
+            }
+        }
+        (b, n)
+    }
+
+    #[test]
+    fn no_data_with_dummy_payload_is_ignored() {
+        let mut p = PacketParser::new();
+        let mut n = 0;
+        let (b, len) = packet(FMT_AM824, 0x02, 2, 0, 0x1000, 8, 0);
+        assert!(matches!(
+            p.parse(&b[..len], &mut |_, _, _| n += 1),
+            Ok(RxEvent::Data { frames: 8, .. })
+        ));
+        assert_eq!(n, 16);
+        // NO-DATA carries the DBC of the next data packet (8) and a dummy payload.
+        n = 0;
+        let (b, len) = packet(FMT_AM824, FDF_NO_DATA, 2, 8, SYT_NO_INFO, 8, 0);
+        assert_eq!(
+            p.parse(&b[..len], &mut |_, _, _| n += 1),
+            Ok(RxEvent::NoData)
+        );
+        assert_eq!(n, 0);
+        // Next data packet at DBC 8: no gap, and the NO-DATA did not advance expected DBC.
+        let (b, len) = packet(FMT_AM824, 0x02, 2, 8, 0x2000, 8, 0);
+        assert!(matches!(
+            p.parse(&b[..len], &mut |_, _, _| {}),
+            Ok(RxEvent::Data { dbc_gap: false, .. })
+        ));
+        assert_eq!(p.discontinuities, 0);
+    }
+
+    #[test]
+    fn no_data_does_not_hide_or_cause_gaps() {
+        let mut p = PacketParser::new();
+        let (b, len) = packet(FMT_AM824, 0x02, 2, 0, 0x1000, 8, 0);
+        p.parse(&b[..len], &mut |_, _, _| {}).unwrap();
+        // NO-DATA with a stale/odd DBC must not count as a discontinuity either.
+        let (b, len) = packet(FMT_AM824, FDF_NO_DATA, 2, 99, SYT_NO_INFO, 0, 0);
+        assert_eq!(p.parse(&b[..len], &mut |_, _, _| {}), Ok(RxEvent::NoData));
+        assert_eq!(p.discontinuities, 0);
+    }
+
+    #[test]
+    fn data_packet_without_timestamp_is_data() {
+        let mut p = PacketParser::new();
+        let (b, len) = packet(FMT_AM824, 0x02, 2, 0, SYT_NO_INFO, 8, 0);
+        assert_eq!(
+            p.parse(&b[..len], &mut |_, _, _| {}),
+            Ok(RxEvent::Data {
+                frames: 8,
+                syt: None,
+                dbc_gap: false
+            })
+        );
+    }
+
+    #[test]
+    fn rejects_non_am824_fmt() {
+        let mut p = PacketParser::new();
+        let (b, len) = packet(0x00, 0x02, 2, 0, 0x1000, 8, 0); // DV
+        assert_eq!(
+            p.parse(&b[..len], &mut |_, _, _| panic!("no samples")),
+            Err(crate::cip::CipError::UnsupportedFormat)
+        );
+    }
+
+    #[test]
+    fn rejects_partial_data_block() {
+        let mut p = PacketParser::new();
+        let (b, len) = packet(FMT_AM824, 0x02, 2, 0, 0x1000, 8, 4);
+        assert_eq!(
+            p.parse(&b[..len], &mut |_, _, _| panic!("no samples")),
+            Err(crate::cip::CipError::BadPayloadLength)
+        );
+    }
+
+    #[test]
+    fn build_rejects_short_buffer_without_side_effects() {
+        let mut b = PacketBuilder::new(1, 2, 0, Sfc::Hz48000).unwrap();
+        let mut pulls = 0;
+        let mut src = || {
+            pulls += 1;
+            Some([0i32; MAX_PCM_CHANNELS])
+        };
+        let mut small = [0u8; 4];
+        let now = CycleTime::from_ticks(0);
+        assert_eq!(
+            b.build(now, &mut src, &mut small),
+            Err(BuildError::BufferTooSmall)
+        );
+        let mut almost = [0u8; 8 + 8 * 2 * 4 - 1];
+        assert_eq!(
+            b.build(now, &mut src, &mut almost),
+            Err(BuildError::BufferTooSmall)
+        );
+        // Nothing consumed or advanced: the first real build is still the first data cycle.
+        let mut big = [0u8; 8 + 8 * 2 * 4];
+        let (len, n) = b.build(now, &mut src, &mut big).unwrap();
+        assert_eq!((len, n), (big.len(), 8));
+        assert_eq!(pulls, 8);
+        assert_eq!(CipHeader::decode(&big).unwrap().dbc, 0);
+    }
+
+    #[test]
+    fn new_rejects_too_many_channels_and_dbs_overflow() {
+        assert_eq!(
+            PacketBuilder::new(1, 34, 0, Sfc::Hz48000).err(),
+            Some(BuildError::TooManyChannels)
+        );
+        assert_eq!(
+            PacketBuilder::new(1, 32, 224, Sfc::Hz48000).err(),
+            Some(BuildError::DbsOverflow)
+        );
+        let b = PacketBuilder::new(1, 32, 223, Sfc::Hz48000).unwrap();
+        assert_eq!(b.dbs, 255);
+        assert!(PacketBuilder::new(1, 32, 0, Sfc::Hz48000).is_ok());
+    }
+
+    #[test]
+    fn all_32_channels_roundtrip() {
+        let mut b = PacketBuilder::new(1, 32, 0, Sfc::Hz48000).unwrap();
+        let mut src = || Some(core::array::from_fn(|c| c as i32 + 1));
+        let mut buf = [0u8; 8 + 8 * 32 * 4];
+        let (len, _) = b
+            .build(CycleTime::from_ticks(0), &mut src, &mut buf)
+            .unwrap();
+        let mut p = PacketParser::new();
+        let mut cnt = 0;
+        p.parse(&buf[..len], &mut |_, ch, s| {
+            assert_eq!(s, ch as i32 + 1);
+            cnt += 1;
+        })
+        .unwrap();
+        assert_eq!(cnt, 8 * 32);
+    }
+
+    #[test]
+    fn build_reports_frames_actually_taken() {
+        let mut b = PacketBuilder::new(1, 2, 0, Sfc::Hz48000).unwrap();
+        let mut left = 3;
+        let mut src = || {
+            if left > 0 {
+                left -= 1;
+                Some([7i32; MAX_PCM_CHANNELS])
+            } else {
+                None
+            }
+        };
+        let mut buf = [0u8; 8 + 8 * 2 * 4];
+        let (len, taken) = b
+            .build(CycleTime::from_ticks(0), &mut src, &mut buf)
+            .unwrap();
+        assert_eq!(len, buf.len());
+        assert_eq!(taken, 3);
+        // Underrun frames are silence, but the packet still carries 8 blocks.
+        let mut p = PacketParser::new();
+        let mut silent = 0;
+        let ev = p
+            .parse(&buf[..len], &mut |f, _, s| {
+                if f >= 3 {
+                    assert_eq!(s, 0);
+                    silent += 1;
+                }
+            })
+            .unwrap();
+        assert!(matches!(ev, RxEvent::Data { frames: 8, .. }));
+        assert_eq!(silent, 10);
+    }
+
     #[test]
     fn build_then_parse_roundtrip() {
-        let mut b = PacketBuilder::new(1, 2, 1, Sfc::Hz48000);
+        let mut b = PacketBuilder::new(1, 2, 1, Sfc::Hz48000).unwrap();
         let mut p = PacketParser::new();
         let mut counter = 0i32;
         let mut src = || {
@@ -279,7 +524,7 @@ mod tests {
         let mut seen = 0i32;
         for cycle in 0..400u32 {
             let now = CycleTime::from_ticks(cycle * TICKS_PER_CYCLE);
-            let (len, _) = b.build(now, &mut src, &mut buf);
+            let (len, _) = b.build(now, &mut src, &mut buf).unwrap();
             let ev = p
                 .parse(&buf[..len], &mut |_, ch, s| {
                     if ch == 0 {

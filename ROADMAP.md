@@ -7,7 +7,7 @@ Milestones are deliberately small so several people can work in parallel. Detail
 - [x] `fw-amdtp`: CIP/AM824 packets, cycle time, SYT scheduler, builder/parser
 - [ ] `fw-1394`: no_std async packet formats (tcodes, read/write/lock, headers, **CRC-32 with spec test vectors**)
 - [ ] Config ROM parser (bus info block, root directory, unit directories)
-- [ ] CI cross-builds `no_std` crates for `thumbv7em-none-eabihf`
+- [x] CI cross-builds `no_std` crates for `thumbv7em-none-eabihf`
 - [ ] Collect real captures from Saffire PRO 10/26/24/40 into `captures/` (needs volunteers with old FireWire machines)
 
 ## M1: Talk to the bus (FPGA + PHY dev setup)
