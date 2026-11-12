@@ -15,9 +15,10 @@ errors; unresolved units are explicitly excluded from implementation constants.
 
 - [IEEE 1394-1995](https://standards.ieee.org/ieee/1394/2094/), §4.3.3
   tables 4-25 through 4-28 (arbitration), §4.4 (cable PHY behavior).
-- [IEEE 1394a-2000, public exhibit](https://ptacts.uspto.gov/ptacts/public-informations/petitions/1529228/download-documents?artifactId=2qSeKUEx7ZRTEisZvIoxlrWEYhYwYZ_EIh9dIpj4AT7ROjNofRFGl0o),
-  §4.3.3, §4.3.5 tables 4-32..34, §4.4.3 figures 4-22..25,
-  annex E table E-1. Access may be blocked; indexed text was available.
+- IEEE Std 1394a-2000 (*IEEE Standard for a High Performance Serial Bus,
+  Amendment 1*), §4.3.3, §4.3.5 tables 4-32..34, §4.4.3 figures 4-22..25,
+  annex E table E-1. Cited from the published standard; not linked or
+  redistributed here.
 - [Sony EP1094638A2, EPO publication](https://data.epo.org/publication-server/rest/v1.2/publication-dates/20010425/patents/EP1094638NWA2/document.pdf),
   pp.2..4 tables 1..5: independent public transcription of base arbitration.
   [EP0923209B1](https://patents.google.com/patent/EP0923209B1/en), tables 3..5,
@@ -160,7 +161,7 @@ accidental use of an old requirement.
 | CONNECT_TIMEOUT | 330..350 ms debounce |
 | DATA_END_TIME | 240..260 ns |
 | DATA_PREFIX_HOLD | >=40 ns after speed signaling |
-| FORCE_ROOT_TIMEOUT | 83.3 us..CONFIG_TIMEOUT; recommended maximum162 us |
+| FORCE_ROOT_TIMEOUT | 83.3 us..CONFIG_TIMEOUT; recommended maximum 162 us |
 | MAX_ARB_STATE_TIME | 200..400 us, excluding idle/tree-start/explicitly timed states |
 | MAX_BUS_HOLD | <=1.63 us concatenation hold |
 | MAX_DATA_TIME | <=84.34 us continuous clocked data |
@@ -178,14 +179,14 @@ accidental use of an old requirement.
 | SHORT_RESET_TIME | 1.26..1.40 us |
 | SID_SPEED_SIGNAL_START | -20..+20 ns relative to IDENT_DONE |
 | SPEED_SIGNAL_LENGTH | 100..120 ns |
-| RESET_DETECT | **UNCONFIRMED**: public indexed text says80..85.3 ms, inconsistent with a166.7 us pulse; obtain and visually check authoritative text/errata before implementation |
+| RESET_DETECT | **UNCONFIRMED**: public indexed text says 80..85.3 ms, inconsistent with a 166.7 us pulse; obtain and visually check authoritative text/errata before implementation |
 | ACK_RESPONSE_TIME | removed; use RESPONSE_TIME |
 | DATA_PREFIX_TIME | removed; use concatenation/hold/min-prefix requirements |
 | MAX_BUS_OCCUPANCY | removed; use MAX_DATA_TIME |
 | MAX_DATA_PREFIX_DELAY | removed; use ARB_RESPONSE_DELAY |
 
-The simulation selects reset166660 ns, reset delta170 ns, force-root100 us,
-contention810/1630 ns, prefix180 ns and end250 ns. Its 10 ns time grid is a test
+The simulation selects reset 166660 ns, reset delta 170 ns, force-root 100 us,
+contention 810/1630 ns, prefix 180 ns and end 250 ns. Its 10 ns time grid is a test
 choice, not an implementation oscillator specification.
 
 ### Gap count
@@ -195,14 +196,14 @@ choice, not an implementation oscillator specification.
 `(29+16g)/BASE_RATE_min + PHY_DELAY_max`. Arbitration-reset detection substitutes
 `51+32g` / `53+32g`. Add `arb_delay=4g/BASE_RATE` before originating arbitration;
 the originating subaction minimum is `(27+20g)/BASE_RATE_max`, arbitration-reset
-minimum `(51+36g)/BASE_RATE_max`. Nominal detection formulas use28/52 instead of
-27/29 or51/53; do not confuse nominal values with tolerance bounds.
+minimum `(51+36g)/BASE_RATE_max`. Nominal detection formulas use 28/52 instead of
+27/29 or 51/53; do not confuse nominal values with tolerance bounds.
 
-Start at63, not a hard-coded two-node optimization. A measured/verified one-hop
-legacy topology may use5 (1394a annex E; Linux
+Start at 63, not a hard-coded two-node optimization. A measured/verified one-hop
+legacy topology may use 5 (1394a annex E; Linux
 [`core-card.c:400..402,518..542`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/drivers/firewire/core-card.c#L400)).
 PHY config, reset history and all peers' self-ID gap counts must agree. Two
-consecutive resets without configuration can restore63 (TSB41AB2 PHY registers).
+consecutive resets without configuration can restore 63 (TSB41AB2 PHY registers).
 
 ## Electrical requirements ledger
 
@@ -213,83 +214,88 @@ thresholds and explicitly specifies driver and comparator conditions.
 
 | Quantity | Confirmed reference value |
 |---|---|
-| TX differential output into56 ohm | 172..265 mV |
+| TX differential output into 56 ohm | 172..265 mV |
 | Driver-off differential voltage | <=20 mV |
-| Signal current, derived | about3.07..4.73 mA through56 ohm; **not** the ±1.05 mA entry below |
-| Driver algebraic sum current, speed off | -1.05..+1.05 mA (sum of+ and- conductor currents) |
+| Signal current, derived | about 3.07..4.73 mA through 56 ohm; **not** the ±1.05 mA entry below |
+| Driver algebraic sum current, speed off | -1.05..+1.05 mA (sum of + and - conductor currents) |
 | S200 speed sink on TPB | -4.84..-2.53 mA **per conductor** |
 | S400 speed sink on TPB | -12.4..-8.1 mA per conductor |
 | Data receiver threshold | -30..+30 mV |
-| Arbitration comparator thresholds | positive89..168 mV; negative-168..-89 mV |
-| Recommended differential RX amplitude | data118..260 mV; arbitration168..265 mV |
-| TPBIAS | nominal1.86 V; loaded1.665..2.015 V; source/sink range-5.6..+1.3 mA |
-| TPB common mode | source-power node0.4706..2.515 V; nonsource0.4706..2.015 V |
-| Bias/connect recognition | TPB bias detector threshold0.6..1.0 V; this alone does not implement unpowered-peer connect detection |
-| Speed comparator, TPBIAS minus TPA CM | S20049..131 mV; S400314..396 mV |
-| Termination |110 ohm cable; TI uses112 ohm split as2x56 at both ends to include internal RX loading |
-| TPA midpoint | TPBIAS,1 uF stabilization |
-| TPB midpoint |5 kohm parallel220 pF to ground |
-| RX input loading | differential4..7 kohm and4 pF; common-mode20 kohm and24 pF |
-| S100 input jitter / pair skew |±1.08 ns / ±0.8 ns |
-| AB1 TX rise/fall |0.5..1.2 ns at connector; BA3F-EP §6.8 specifies0.3..0.8 ns for that device |
+| Arbitration comparator thresholds | positive 89..168 mV; negative -168..-89 mV |
+| Recommended differential RX amplitude | data 118..260 mV; arbitration 168..265 mV |
+| TPBIAS | nominal 1.86 V; loaded 1.665..2.015 V; source/sink range -5.6..+1.3 mA |
+| TPB common mode | source-power node 0.4706..2.515 V; nonsource 0.4706..2.015 V |
+| Bias/connect recognition | TPB bias detector threshold 0.6..1.0 V; this alone does not implement unpowered-peer connect detection |
+| Speed comparator, TPBIAS minus TPA CM | S200 49..131 mV; S400 314..396 mV |
+| Termination | 110 ohm cable; TI uses 112 ohm split as 2x56 at both ends to include internal RX loading |
+| TPA midpoint | TPBIAS, 1 uF stabilization |
+| TPB midpoint | 5 kohm parallel 220 pF to ground |
+| RX input loading | differential 4..7 kohm and 4 pF; common-mode 20 kohm and 24 pF |
+| S100 input jitter / pair skew | ±1.08 ns / ±0.8 ns |
+| AB1 TX rise/fall | 0.5..1.2 ns at connector; BA3F-EP §6.8 specifies 0.3..0.8 ns for that device |
 
-FW803 table3 differs in some speed/common-mode limits (e.g. S20045..139 mV),
+FW803 table 3 differs in some speed/common-mode limits (e.g. S200 45..139 mV),
 so matching a single chip's thresholds is not proof of universal compatibility.
 S100 means **no S200/S400 common-mode sink**, not that common-mode errors are
-harmless: a49 mV droop can already trip a peer's speed detector. Unpowered
-backfeed, TPBIAS connection probing (Philips ICD max76 uA), debounce and safe
+harmless: a 49 mV droop can already trip a peer's speed detector. Unpowered
+backfeed, TPBIAS connection probing (Philips ICD max 76 uA), debounce and safe
 VP handling remain AFE work. See the independent workstream-B AFE PR.
 
 ## Full-duplex 48 kHz AMDTP at S100
 
 Use **peak blocking packets**, not average `48000/8000=6` frames. `fw-amdtp`
-produces8 event blocks in a data packet at48 kHz, with a no-data slot every
+produces 8 event blocks in a data packet at 48 kHz, with a no-data slot every
 fourth cycle (`stream` tests). Both directions may peak in the same cycle; we
 cannot assume favorable phase alignment. Each AM824 MIDI data channel costs
 one full quadlet per event block even when no MIDI byte is active.
 
 For each stream, CIP payload `P=8 + 8*4*(PCM+MIDI_slots)`; on-wire isochronous
-header/headerCRC/dataCRC add12 bytes. At S100 the resource reservation is
-`4*align4(P+12)+overhead` bandwidth units. One unit is1/49.152 MHz seconds.
+header/headerCRC/dataCRC add 12 bytes. At S100 the resource reservation is
+`4*align4(P+12)+overhead` bandwidth units. One unit is 1/49.152 MHz seconds.
 Linux [`iso-resources.c:48..76,114..130`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/iso-resources.c#L48)
-reserves512 overhead units per stream at default gap63, or
+reserves 512 overhead units per stream at default gap 63, or
 `floor(9.7*g)+89` for optimized gaps. This accounts conservatively for
 arbitration, prefix/end, propagation and interpacket timing. The IRM budget is
-4915 units (about100 us); cycle-start and asynchronous reserve occupy the
-remaining cycle, so **do not subtract them again from4915**. Source:
+4915 units (about 100 us); cycle-start and asynchronous reserve occupy the
+remaining cycle, so **do not subtract them again from 4915**. Source:
 [`drivers/firewire/core.h:51`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/drivers/firewire/core.h#L51).
 
-| Device/profile | PCM capture/playback | MIDI slots | CIP payloads B | Units atgap63 | Time us | Fits4915? |
+| Device/profile | PCM capture/playback | MIDI slots | CIP payloads B [verify] | Units at gap 63 [verify] | Time us | Fits 4915? |
 |---|---:|---|---|---:|---:|---|
-| PRO10 i/o |10/10 |1 each |360+360 |4000 |81.380 |yes |
-| PRO26 i/o, ADAT off |10/10 |1 each |360+360 |4000 |81.380 |yes |
-| PRO26 i/o, all ADAT |26/26 |1 each |872+872 |8096 |164.714 |**no** |
-| PRO24 /24 DSP |16/8 |1 each |552+296 |4512 |91.797 |yes, limited reserve |
-| PRO40 original four-stream layout |(10+10)/(12+8) |1 in first stream ofeachdirection |360+328+424+264 |7744 |157.552 |**no** |
+| PRO10 i/o | 10/10 | 1 each | 360+360 | 4000 | 81.380 | yes |
+| PRO26 i/o, ADAT off | 10/10 | 1 each | 360+360 | 4000 | 81.380 | yes |
+| PRO26 i/o, all ADAT | 26/26 | 1 each | 872+872 | 8096 | 164.714 | **no** |
+| PRO24 /24 DSP | 16/8 | 1 each | 552+296 | 4512 | 91.797 | yes, limited reserve |
+| PRO40 original four-stream layout | (10+10)/(12+8) | 1 in first stream of each direction | 360+328+424+264 | 7744 | 157.552 | **no** |
 
-Atgap5 the corresponding units are3250,3250,7346,3762,6244: optimization cannot
+At gap 5 the corresponding units are 3250, 3250, 7346, 3762, 6244: optimization cannot
 rescue the two failures. Even an unrealistically perfect aggregation of PRO40
-into two20PCM+MIDI streams exceeds4915 before ordinary overhead. Each individual
-48k packet above fits the S1001024-byte isochronous data limit; the failure is
+into two 20 PCM+MIDI streams exceeds 4915 before ordinary overhead. Each individual
+48k packet above fits the S100 1024-byte isochronous data limit; the failure is
 **duplex aggregate time/reservation**. S200 is the conservative target for full
 PRO26/40. Actual S100 operation also depends on firmware accepting that speed.
 
+All payload sizes and unit counts in this table are **[verify]**: they are
+computed from channel counts and layouts read from public driver tables and
+manuals, not from captured streams. The PRO24 and original PRO40 rows are the
+least certain.
+
 Channel sources: Focusrite
 [PRO10 guide p.14](https://fael-downloads-prod.focusrite.com/customer/prod/s3fs-public/downloads/saffire-pro10-user-guide-english0.pdf)
-(10in/10out, through96k, no176.4/192k),
+(10 in/10 out, through 96k, no 176.4/192k),
 [PRO26 i/o guide pp.13,20..21](https://fael-downloads-prod.focusrite.com/customer/dev/s3fs-public/downloads/saffire-pro26-user-guide-english0.pdf)
-(26/26 at48k,18/18 at96k,10/10 at192k, optional ADAT-off10/10);
-[PRO24 DSP observed register dump, lines76..122,143..164](https://github.com/mrmidi/ASFireWire/blob/95413cf551893d04cc68d3c44628cbb8a0674af7/documentation/fixtures/DICE/spro24dsp.txt#L76)
+(26/26 at 48k, 18/18 at 96k, 10/10 at 192k, optional ADAT-off 10/10);
+[PRO24 DSP observed register dump, lines 76..122, 143..164](https://github.com/mrmidi/ASFireWire/blob/95413cf551893d04cc68d3c44628cbb8a0674af7/documentation/fixtures/DICE/spro24dsp.txt#L76)
 (16/8 PCM plus MIDI);
 [original PRO40 stream report](https://sourceforge.net/p/ffado/mailman/ffado-user/thread/56C832B1.7050600%40sakamocchi.jp/)
 by ALSA maintainer (four-stream layout, observed not universal);
 [Linux DICE Focusrite table](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/dice/dice-focusrite.c#L8)
-(newer PRO40 TCD3070 aggregate20/20 plus MIDI). PRO24 assumptions require live
+(newer PRO40 TCD3070 aggregate 20/20 plus MIDI). PRO24 assumptions require live
 format verification, and PRO40 firmware layouts differ. The modern DICE **PRO26**
 is a different device from the BeBoB **PRO26 i/o**.
 
 `bandwidth.rs` uses `PacketBuilder::max_len()` and tests these exact totals,
-alignment/overflow and per-packet limits. This replaces the old18/10 rough
+alignment/overflow and per-packet limits. This replaces the old 18/10 rough
 estimate. No real audio stream or Saffire S100 compatibility has been tested.
 
 ## Cross-family link-speed envelope
@@ -299,19 +305,19 @@ milestone, **not the reference adapter's speed ceiling**. The chip-PHY/link path
 must implement S100/S200/S400 and admit each stream profile against both cable
 and USB capacity. Raw-link storage and DV/HDV do not pass through an audio codec.
 
-The following are conservative peak reservations at gap63, generated by:
+The following are conservative peak reservations at gap 63, generated by:
 
 ```sh
 cargo run -p fw-amdtp --example bandwidth
 ```
 
-Every entry includes all enabled directions,12 wire-overhead bytes per packet,
+Every entry includes all enabled directions, 12 wire-overhead bytes per packet,
 512 arbitration/timing units per stream, and CIP only when actually present.
-Numbers exceeding4915 fail; also independently check the1024/2048/4096-byte
+Numbers exceeding 4915 fail; also independently check the 1024/2048/4096-byte
 S100/S200/S400 packet ceilings. **Capacity minimum is not a claim of firmware
 speed support.** Some hardware will insist on S400 even when payload fits below.
 
-| Profile | Peak data bytes | S100 units | S200 units | S400 units | Capacity minimum |
+| Profile | Peak data bytes [verify] | S100 units [verify, hypothetical] | S200 units [verify, hypothetical] | S400 units [verify] | Capacity minimum [verify] |
 |---|---|---:|---:|---:|---|
 | BeBoB PRO10 48k | [360, 360] | 4000 | 2512 | 1768 | S100 |
 | BeBoB PRO10 96k | [712, 712] | 6816 | 3920 | 2472 | S200 |
@@ -323,53 +329,59 @@ speed support.** Some hardware will insist on S400 even when payload fits below.
 | RME FF800 48k | [896, 896] | 8288 | 4656 | 2840 | S200 |
 | RME FF400 192k | [1280, 1280] | 11360 | 6192 | 3608 | S400 |
 | RME FF800 192k | [1536, 1536] | 13408 | 7216 | 4120 | S400 |
-| OXFW FireWave 6out 48k | [200] | 1360 | 936 | 724 | S100 |
+| OXFW FireWave 6 out 48k | [200] | 1360 | 936 | 724 | S100 |
 | EFW AudioFire12 48k | [424, 424] | 4512 | 2768 | 1896 | S100 |
 | MOTU 828mkII ADAT 48k | [616, 616] | 6048 | 3536 | 2280 | S200 |
 | MOTU UltraLiteMk3 192k | [1288, 1672] | 12960 | 6992 | 4008 | S400 |
 | Digi002/003 48k | [616, 616] | 6048 | 3536 | 2280 | S200 |
 | TASCAM FW1884 48k | [648, 584] | 6048 | 3536 | 2280 | S200 |
 
+All peak data bytes and per-speed unit counts in the table above are **[verify]**
+(derived from driver tables, not captured traffic). Columns for a speed the
+device may not support are hypothetical airtime only: S100 and S200 for TASCAM
+FW1884 (TX is S400), for RME FF400/FF800 (lower-speed TX unconfirmed), and for
+the MOTU, RME and DICE high-rate rows whose minimum is S200 or S400.
+
 Sources/derivations for the additional families (all Linux links are pinned):
 
 - [RME `ff.c:134..174`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/fireface/ff.c#L134)
-  gives FF40018/14/10 and FF80028/20/12 PCM each direction by rate family.
+  gives FF400 18/14/10 and FF800 28/20/12 PCM each direction by rate family.
   [`amdtp-ff.c:15..28,165`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/fireface/amdtp-ff.c#L15)
-  uses4 bytes per PCM, blocking packets, **no CIP**, and separate asynchronous
-  MIDI. Thus48k block counts8,192k32. S100/S200 device-TX support is unconfirmed:
+  uses 4 bytes per PCM, blocking packets, **no CIP**, and separate asynchronous
+  MIDI. Thus 48k block counts 8, 192k 32. S100/S200 device-TX support is unconfirmed:
   [`ff-protocol-former.c:285..289,382..390,513..518`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/fireface/ff-protocol-former.c#L285)
   exposes an S800 flag for FF800 and fixed-format FF400 fields, not a verified
   arbitrary TX-speed selector. S400 is the safe implementation target.
 - [OXFW speaker table, `oxfw-spkr.c:278..285`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/oxfw/oxfw-spkr.c#L278)
   gives FireWave six playback channels. This is **one-way**, no invented capture
-  stream. The selected6PCM mode has24-byte AM824 blocks; Linux's max-payload
-  reservation uses8 blocks, although nominal48k nonblocking emission has6.
+  stream. The selected 6 PCM mode has 24-byte AM824 blocks; Linux's max-payload
+  reservation uses 8 blocks, although nominal 48k nonblocking emission has 6.
   [`oxfw-stream.c:155..195`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/oxfw/oxfw-stream.c#L155).
   Other OXFW firmware can burst jumbo capture packets after skipped cycles;
   **do not extrapolate this row** to all Oxford products.
 - [EFW AudioFire12 parameters, `audiofire.rs:37..54`](https://github.com/alsa-project/snd-firewire-ctl-services/blob/7654d40cb0e62426e460c0b94605e2a4b506d6bb/protocols/fireworks/src/audiofire.rs#L37)
-  give12PCM each direction plus one MIDI port;52-byte blocks with8-byte CIP.
+  give 12 PCM each direction plus one MIDI port; 52-byte blocks with 8-byte CIP.
   [Linux `fireworks_stream.c:32..59,162..182`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/fireworks/fireworks_stream.c#L32)
   confirms blocking AM824 and special DBC/SYT behavior. AudioFire8's name is
-  not its wire count: its10PCM includes digital channels. Query capabilities.
+  not its wire count: its 10 PCM includes digital channels. Query capabilities.
 - [MOTU v2 format rules, `motu-protocol-v2.c:229..281`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/motu/motu-protocol-v2.c#L229)
-  add8 ADAT chunks to14 fixed chunks for828mkII at48k, plus2 message chunks.
+  add 8 ADAT chunks to 14 fixed chunks for 828mkII at 48k, plus 2 message chunks.
   [`amdtp-motu.c:69..76`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/motu/amdtp-motu.c#L69)
   gives block bytes=`4+align4(3*(PCM_chunks+message_chunks))`: SPH plus packed
   three-byte chunks, not AM824. MIDI is inside message chunks, **no extra MIDI
-  quadlet**. For UltraLiteMk3 at192k,10TX/14RX PCM chunks and2 message chunks
-  give40/52-byte blocks with32 events:
+  quadlet**. For UltraLiteMk3 at 192k, 10 TX/14 RX PCM chunks and 2 message chunks
+  give 40/52-byte blocks with 32 events:
   [`motu-protocol-v3.c:243..247,310..317`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/motu/motu-protocol-v3.c#L310).
   Wire chunks can include padding/unused optical slots; do not relabel all
   chunks as user-facing PCM connectors.
 - [Digi002/003 rate table, `digi00x-stream.c:19..28`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/digi00x/digi00x-stream.c#L19)
-  gives18PCM at48k and10 at96k;
+  gives 18 PCM at 48k and 10 at 96k;
   [`amdtp-dot.c:113..127`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/digi00x/amdtp-dot.c#L113)
   adds one MIDI channel before PCM. CIP resemblance does not remove the
   Digi003 DOT sample transformation requirement.
 - [TASCAM FW1884 specification, `tascam.c:14..23`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/tascam/tascam.c#L14)
   and [`tascam-stream.c:306..324`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/tascam/tascam-stream.c#L306)
-  provide18PCM each direction with digital ports enabled;
+  provide 18 PCM each direction with digital ports enabled;
   [`amdtp-tascam.c:11..32`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/tascam/amdtp-tascam.c#L11)
   adds two counter/status quadlets only to capture. TX resources are explicitly
   **S400** in [`tascam-stream.c:287..293`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/tascam/tascam-stream.c#L287).
@@ -378,7 +390,7 @@ Sources/derivations for the additional families (all Linux links are pinned):
 Common conservative peak sizing comes from
 [`amdtp-stream.c:300..330`](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/amdtp-stream.c#L300).
 Nonblocking, jumbo payloads and DICE high-rate dual-wire modes need their own
-peak formation; do not apply8/16/32 times advertised connector count blindly.
+peak formation; do not apply 8/16/32 times advertised connector count blindly.
 `bandwidth::stream_payload` and `minimum_speed` take **arbitrary data-field
 sizes**, so custom stream modules can reuse the accounting without AM824 parsing.
 The common accounting lives in fw-amdtp for now and can be shared/re-exported
@@ -386,8 +398,8 @@ without making that codec mandatory for other families.
 
 This evidence makes S400 support essential for the generic adapter. In particular,
 FF400/800 and UltraLiteMk3 high-rate duplex profiles exceed the conservative
-S200 budget. Original four-stream PRO40 only leaves19 bandwidth units atS200
-gap63; S400 or a validated gap optimization is the practical bring-up choice.
+S200 budget. Original four-stream PRO40 only leaves 19 bandwidth units at S200
+gap 63; S400 or a validated gap optimization is the practical bring-up choice.
 The physical speed ceiling also differs from transparent USB forwarding capacity;
 no claim is made that USB2 can carry a full S800 line-rate stream.
 
