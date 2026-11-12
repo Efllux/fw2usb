@@ -80,13 +80,19 @@ pub enum CipError {
     BadEoh,
     /// FN/QPC/SPH not zero: fractions/source packet headers are not used by AM824.
     Unsupported,
+    /// FMT is not AM824 (e.g. DV); this crate only models audio.
+    UnsupportedFormat,
+    /// Payload after the CIP header is not a whole number of data blocks.
+    BadPayloadLength,
 }
 
 impl CipHeader {
     pub const LEN: usize = 8;
 
+    /// True for a NO-DATA packet (FDF == 0xFF). A data packet may legitimately carry
+    /// `SYT_NO_INFO`, so the SYT field is deliberately not considered.
     pub fn is_no_data(&self) -> bool {
-        self.fdf == FDF_NO_DATA || self.syt == SYT_NO_INFO
+        self.fdf == FDF_NO_DATA
     }
 
     pub fn sfc(&self) -> Option<Sfc> {
@@ -147,6 +153,23 @@ mod tests {
         assert_eq!(b, [0x3E, 0x0A, 0x00, 0xF8, 0x90, 0x02, 0x12, 0x34]);
         assert_eq!(CipHeader::decode(&b).unwrap(), h);
         assert_eq!(h.sfc(), Some(Sfc::Hz48000));
+    }
+
+    #[test]
+    fn no_data_depends_only_on_fdf() {
+        let mut h = CipHeader {
+            sid: 0,
+            dbs: 2,
+            dbc: 0,
+            fmt: FMT_AM824,
+            fdf: Sfc::Hz48000 as u8,
+            syt: SYT_NO_INFO,
+        };
+        // A data packet may legitimately carry no timestamp.
+        assert!(!h.is_no_data());
+        h.fdf = FDF_NO_DATA;
+        h.syt = 0x1234;
+        assert!(h.is_no_data());
     }
 
     #[test]
