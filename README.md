@@ -12,10 +12,16 @@ driver on your computer.
 FireWire device ─ FW400/800 ─▶ [ PHY chip ─ FPGA link layer ─ USB 2.0 HS ] ─ USB-C ─▶ Mac / PC / Linux
 ```
 
-- **Audio interfaces first** (Focusrite Saffire family): the adapter presents itself as a
+- **Audio interfaces across all families** (BeBoB, DICE, Oxford, Fireworks, MOTU, RME, Digi, TASCAM and generic AV/C): the adapter presents itself as a
   class-compliant USB Audio 2.0 device, so it works with the OS's built-in driver.
 - **Universal "raw link" mode**: FireWire packets tunnelled over USB to an open Rust host
   library, so disks, DV cameras and other devices can be supported in user-space software.
+
+Three tiers: class-compliant UAC2 async audio out of the box; an always-present
+companion interface for mixer/routing/configuration; and an explicit persistent
+switch to a different USB PID for raw FireWire tunneling. Hold the button at plug-in
+for audio-mode recovery. Profiles and signed DFU updates are planned; none of these
+USB personalities is implemented yet. See [architecture](docs/DESIGN.md).
 
 ## Status
 

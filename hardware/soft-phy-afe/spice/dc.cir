@@ -1,0 +1,12 @@
+* SPDX-License-Identifier: CERN-OHL-S-2.0
+* All nine local/remote drive combinations; both cable ends observed.
+.include afe.lib
+.param al=4m ar=4m mi=0 bias=1.86
+Vref ref 0 {bias}
+Vl lc 0 0
+Vr rc 0 0
+Vcm cm 0 0
+Xpair p n q r ref lc rc cm cm port_pair ampL={al} ampR={ar} mis={mi}
+.dc Vl -1 1 1 Vr -1 1 1
+.print dc v(p) v(n) v(q) v(r)
+.end
