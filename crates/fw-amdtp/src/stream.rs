@@ -8,7 +8,14 @@ use crate::am824;
 use crate::cip::{CipError, CipHeader, Sfc, FDF_NO_DATA, FMT_AM824, SYT_NO_INFO};
 use crate::cycle::{CycleTime, TICKS_PER_CYCLE, TICKS_PER_SECOND};
 
-/// Default presentation delay added to outgoing SYT (same value Linux ALSA uses: ~479 µs).
+/// Default presentation delay added to outgoing SYT: 0x2E00 ticks (~479 µs).
+///
+/// This is the same number as `TRANSFER_DELAY_TICKS` in Linux
+/// `sound/firewire/amdtp-stream.c`, but ALSA does not use it directly: in
+/// `amdtp_stream_set_parameters()` it sets `transfer_delay = TRANSFER_DELAY_TICKS -
+/// TICKS_PER_CYCLE` (one cycle less, 0x2200) and, for `CIP_BLOCKING` streams, adds one
+/// SYT interval (`TICKS_PER_SECOND * syt_interval / rate`, e.g. 4096 ticks at 48 kHz,
+/// giving 0x3200). So the effective ALSA delay differs from this constant.
 pub const TRANSFER_DELAY_TICKS: u32 = 0x2E00;
 
 /// Decides, per isochronous cycle, whether a data packet is sent and with which SYT.
