@@ -234,7 +234,7 @@ impl PacketParser {
             return Ok(RxEvent::NoData);
         }
         let block = hdr.dbs as usize * 4;
-        if data.len() % block != 0 {
+        if !data.len().is_multiple_of(block) {
             return Err(CipError::BadPayloadLength);
         }
         let frames = data.len() / block;
