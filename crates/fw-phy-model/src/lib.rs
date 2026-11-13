@@ -5,10 +5,13 @@
 //! - [`line`]: arbitration line-state resolution (1 / 0 / Z with two drivers on one pair)
 //! - [`selfid`]: self-ID packet #0 format
 //!
-//! Arbitration signal tables and the PHY state machines are still to be transcribed from
-//! IEEE 1394-1995 §4 / 1394a-2000 (see docs/SOFT-PHY.md).
+//! [`arb`] adds sourced transmit/interpretation tables; [`two_node`] models
+//! signal handshakes and timed opaque self-ID packets. See docs/SOFT-PHY.md
+//! for scope: this is not a conformance-complete PHY.
 #![no_std]
 
+pub mod arb;
 pub mod ds;
 pub mod line;
 pub mod selfid;
+pub mod two_node;
