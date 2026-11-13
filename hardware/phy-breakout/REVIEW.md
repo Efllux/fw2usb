@@ -1,10 +1,8 @@
 # PHY breakout: chip decision and schematic review
 
-Status: working notes for the `hardware/phy-breakout-complete` branch. The
-decisions below are made; the generator scripts, schematic and PCB are being
-brought into line with them in later commits on this branch. Until those
-commits land, `design.py`, the schematic and the PCB still describe the old
-unrouted design.
+These are the decisions behind revision 0.2 of the board. The generator
+scripts, schematic and PCB on this branch implement all of them; the README
+describes the result.
 
 ## Sources
 
@@ -248,7 +246,7 @@ mode it works through TPBIAS and the TPB common-mode level (p18).
 
 The pin order is changed so that the bus routes without crossings and the
 clock sits between two ground wires in a ribbon cable. The 3.3 V pin is
-removed; power comes in only on J3. The new table will be in the README.
+removed; power comes in only on J3. The table is in the README.
 
 ### Still needs a measurement
 
