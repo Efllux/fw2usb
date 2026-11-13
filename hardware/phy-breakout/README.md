@@ -169,6 +169,10 @@ mounted and the path to `KiCad.app` inside it given to the script. The
 official 8.0.9 image has SHA-256
 `865a96ff02e9dc4d5e6d3554d8224b7d780aae7b2975329d911dfe57820ba07a`.
 
+A rebuild gives the same geometry and the same check results, but KiCad
+assigns new internal identifiers to board items, so the board, footprint and
+Gerber files differ textually from the committed ones.
+
 No autorouter is used. To change the layout, edit the coordinates in
 `design.py` and the routes in `pcb.py`, rebuild, and read `reports/drc.txt`.
 
