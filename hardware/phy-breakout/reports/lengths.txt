@@ -1,0 +1,22 @@
+Routed lengths in mm, from pcb.py. Delay uses 6.9 ps/mm (outer layer, FR-4).
+
+PHY-LINK bus: U1 pin to series resistor, resistor to header pin, total
+  LKON_H    10.29   8.43  19.81
+  LREQ_H     9.97   5.36  16.43
+  SCLK_H     9.33   5.36  15.79
+  CTL0_H     9.11   5.36  15.57
+  CTL1_H     8.26   5.36  14.72
+  D0_H       8.46   8.43  17.98
+  D1_H       8.78   5.36  15.24
+  D2_H       9.09   8.43  18.62
+  D3_H       9.21   5.36  15.67
+  D4_H       9.53   8.43  19.05
+  D5_H       9.84   5.36  16.30
+  D6_H       9.96   8.43  19.48
+  D7_H      10.28   5.36  16.74
+  LPS_H     12.63   5.36  19.09
+  spread 5.09 mm = 35 ps
+
+Port 2 pairs: U1 pin to connector pad
+  TPA2+ 12.430  TPA2- 12.430  skew 0.000 mm = 0.0 ps
+  TPB2+ 12.430  TPB2- 12.430  skew 0.000 mm = 0.0 ps

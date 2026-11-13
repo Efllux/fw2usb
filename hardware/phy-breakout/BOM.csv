@@ -1,71 +1,23 @@
-Reference,Value,Footprint,Manufacturer part,Verification
-U1,TSB41BA3FTPFPEP,fw2usb:HTQFP80,TSB41BA3FTPFPEP,[verify] legacy register/timing cross-check; EP6x6; electrical bring-up
-J2,ECP5_PHY_2x10,fw2usb:Header20,Samtec TSW-110-07-G-D,[verify] header orientation; ULX3S net map in README; no ULX supply tie
-J3,BENCH_3V3,fw2usb:Header2,Samtec TSW-102-07-G-S,[verify] external regulated3.3V current budget
-J1,FW400_6PIN,fw2usb:FW6,Molex 53460-0639,[verify] vendor drawing/receptacle view and retention holes; VP deliberately NC
-R1,1k,fw2usb:R,Yageo RC0402FR-071KL,[verify] assembly/stock
-R2,1k,fw2usb:R,Yageo RC0402FR-071KL,[verify] assembly/stock
-R3,1k,fw2usb:R,Yageo RC0402FR-071KL,[verify] assembly/stock
-R4,1k,fw2usb:R,Yageo RC0402FR-071KL,[verify] assembly/stock
-R5,1k,fw2usb:R,Yageo RC0402FR-071KL,[verify] assembly/stock
-R6,1k,fw2usb:R,Yageo RC0402FR-071KL,[verify] assembly/stock
-R7,1k,fw2usb:R,Yageo RC0402FR-071KL,[verify] assembly/stock
-R8,1k,fw2usb:R,Yageo RC0402FR-071KL,[verify] assembly/stock
-R9,1k,fw2usb:R,Yageo RC0402FR-071KL,[verify] assembly/stock
-R10,1k,fw2usb:R,Yageo RC0402FR-071KL,[verify] assembly/stock
-R11,1k,fw2usb:R,Yageo RC0402FR-071KL,[verify] assembly/stock
-R12,22,fw2usb:R,Yageo RC0402FR-0722RL,[verify] assembly/stock
-R13,6.34k 1%,fw2usb:R,Yageo RC0402FR-076K34L,[verify] assembly/stock
-R14,56.2 1%,fw2usb:R,Yageo RC0402FR-0756R2L,[verify] assembly/stock
-R15,56.2 1%,fw2usb:R,Yageo RC0402FR-0756R2L,[verify] assembly/stock
-R16,56.2 1%,fw2usb:R,Yageo RC0402FR-0756R2L,[verify] assembly/stock
-R17,56.2 1%,fw2usb:R,Yageo RC0402FR-0756R2L,[verify] assembly/stock
-R18,4.99k 1%,fw2usb:R,Yageo RC0402FR-074K99L,[verify] assembly/stock
-C1,270p C0G,fw2usb:C,Murata GRM1555C1H271JA01D,[verify] assembly/stock
-C2,1u,fw2usb:C,Murata GRM155R61A105KE15D,[verify] assembly/stock
-R19,1M,fw2usb:R0603,Yageo RC0603FR-071ML,[verify] assembly/stock
-C3,10n 50V,fw2usb:C0603,Murata GRM188R71H103KA01D,[verify] assembly/stock
-C4,1n 50V,fw2usb:C0603,Murata GRM1885C1H102JA01D,[verify] assembly/stock
-C5,220n,fw2usb:C,Murata GRM155R71C224KA12D,[verify] ramp/clock startup and minimum2ms reset; FPGA open-drain hold
-Y1,49.152MHz fundamental CL6p,fw2usb:Crystal4,Abracon ABM8W-49.1520MHZ-6-K1Z-T3,[verify] fundamental mode/ESR/drive/CL and assembled PCLK ppm
-C6,6.8p C0G,fw2usb:C,Murata GRM1555C1H6R8CA01D,"[verify] tune for PCB+PHY parasitics, measure PCLK within100ppm"
-C7,6.8p C0G,fw2usb:C,Murata GRM1555C1H6R8CA01D,[verify] tune for PCB+PHY parasitics
-C8,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C9,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C10,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C11,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C12,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C13,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C14,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C15,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C16,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C17,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C18,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C19,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C20,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C21,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C22,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C23,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C24,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C25,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C26,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C27,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C28,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C29,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C30,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C31,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C32,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C33,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C34,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C35,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C36,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C37,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C38,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C39,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C40,100n,fw2usb:C,Murata GRM155R71C104KA88D,[verify] assembly/stock
-C41,1n,fw2usb:C,Murata GRM1555C1H102JA01D,[verify] assembly/stock
-C42,1u,fw2usb:C,Murata GRM155R61A105KE15D,[verify] assembly/stock
-C43,1u,fw2usb:C,Murata GRM155R61A105KE15D,[verify] assembly/stock
-C44,10u 10V,fw2usb:C0805,Murata GRM21BR61A106KE19L,[verify] assembly/stock
-C45,10u 10V,fw2usb:C0805,Murata GRM21BR61A106KE19L,[verify] assembly/stock
-C46,10u 10V,fw2usb:C0805,Murata GRM21BR61A106KE19L,[verify] assembly/stock
+References,Qty,Value,Package,Manufacturer part,Side,Note
+U1,1,TSB41BA3FTPFPEP,"HTQFP-80 12x12 mm 0.5 mm pitch, 6x6 mm pad",TI TSB41BA3FTPFPEP,top,check stock and price before ordering; see REVIEW.md
+J2,1,FPGA_2x10,2x10 2.54 mm,Samtec TSW-110-07-G-D,top,any 2x10 2.54 mm header
+J3,1,BENCH_3V3,1x2 2.54 mm,Samtec TSW-102-07-G-S,top,"regulated 3.3 V, 200 mA or more"
+J1,1,FW400_6PIN,IEEE 1394 6-pin right-angle SMT,Keystone 927TR,top,second source Assmann WSW A-IES-SMT-U/R: check its pad order by continuity first
+U2,1,TPD4E05U06,USON-10 2.5x1.0 mm,TI TPD4E05U06DQAR,top,
+Y1,1,49.152MHz CL6pF,3.2x2.5 mm 4-pad,Abracon ABM8W-49.1520MHZ-6-K1Z-T3,top,"any 49.152 MHz fundamental 3225 crystal, 30 ppm; recalculate C6/C7 for its load"
+R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11,11,1k,0402,Yageo RC0402FR-071KL,top,
+R12 R21 R22 R23 R24 R25 R26 R27 R28 R29 R30 R31,12,22,0402,Yageo RC0402FR-0722RL,top,
+R20,1,10k,0402,Yageo RC0402FR-0710KL,top,
+R13,1,6.34k 1%,0402,Yageo RC0402FR-076K34L,top,
+R15 R14 R17 R16,4,56.2 1%,0402,Yageo RC0402FR-0756R2L,top,
+R18,1,4.99k 1%,0402,Yageo RC0402FR-074K99L,top,
+C1,1,270p C0G,0402,Murata GRM1555C1H271JA01D,top,
+C2 C10 C32,3,1u,0402,Murata GRM155R61A105KE15D,both,
+R19,1,1M,0603,Yageo RC0603FR-071ML,top,
+C3,1,10n 50V,0603,Murata GRM188R71H103KA01D,top,
+C4,1,1n 50V,0603,Murata GRM1885C1H102JA01D,top,
+C5,1,220n,0402,Murata GRM155R71C224KA12D,top,"measure reset low time at power-up, 2 ms minimum"
+C6 C7,2,8.2p C0G,0402,Murata GRM1555C1H8R2DA01D,top,keep equal to C6; trim so that PCLK is 49.152 MHz within 100 ppm
+C8 C9 C11 C12 C15 C16 C19 C20 C21 C24 C26 C27 C28 C30 C31,15,100n,0402,Murata GRM155R71C104KA88D,bottom,
+C13 C14 C17 C18 C22 C23 C25 C29,8,1n,0402,Murata GRM1555C1H102JA01D,bottom,
+C33 C34,2,10u 10V,0805,Murata GRM21BR61A106KE19L,top,
