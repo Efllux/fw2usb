@@ -56,14 +56,14 @@ def pad(fp, number, x, y, w, h, drill=None, shape=None, plated=True, slot=None):
     return p
 
 
-def line(fp, layer, a, b, width=0.12):
+def line(fp, layer, a, b, width=0.15):
     s = k.PCB_SHAPE(fp)
     s.SetShape(k.SHAPE_T_SEGMENT)
     s.SetStart(L(*a)); s.SetEnd(L(*b)); s.SetLayer(layer); s.SetWidth(mm(width))
     fp.Add(s)
 
 
-def box(fp, layer, x0, y0, x1, y1, width=0.12):
+def box(fp, layer, x0, y0, x1, y1, width=0.15):
     for a, b in [((x0, y0), (x1, y0)), ((x1, y0), (x1, y1)), ((x1, y1), (x0, y1)), ((x0, y1), (x0, y0))]:
         line(fp, layer, a, b, width)
 
@@ -224,9 +224,16 @@ def place():
         board.Add(fp)
         net_by_pad = {pin[0]: pin[2] for pin in p['pins']}
         for pad_ in fp.Pads():
-            name = net_by_pad.get(pad_.GetNumber())
+            number = pad_.GetNumber()
+            name = net_by_pad.get(number)
             if name:
                 pad_.SetNet(nets[name])
+            elif number in net_by_pad:
+                # Deliberately unconnected pin: same single-pad net name that
+                # KiCad derives from the schematic, so the parity check passes.
+                pin_name = next(pin[1] for pin in p['pins'] if pin[0] == number)
+                nc = k.NETINFO_ITEM(board, 'unconnected-(%s-%s-Pad%s)' % (p['ref'], pin_name, number))
+                board.Add(nc); pad_.SetNet(nc)
         want = p.get('pads') or p.get('check')
         if 'pads' in p:
             a, b = p['pads']['1'], p['pads']['2']
@@ -489,7 +496,7 @@ def zone(net, layer, clearance=0.2):
     board.Add(z)
 
 
-def text(s, x, y, size=0.8, layer=k.F_SilkS, angle=0):
+def text(s, x, y, size=1.0, layer=k.F_SilkS, angle=0):
     t = k.PCB_TEXT(board)
     t.SetText(s); t.SetPosition(P(x, y)); t.SetLayer(layer)
     t.SetTextSize(L(size, size)); t.SetTextThickness(mm(size * .15)); t.SetTextAngleDegrees(angle)
@@ -538,10 +545,10 @@ def main():
         ln.SetLayer(k.Edge_Cuts); ln.SetWidth(mm(.1)); board.Add(ln)
     zone('GND', IN1); zone('3V3', IN2); zone('GND', B)
     # Silkscreen: what a person wiring or probing the board needs.
-    text('fw2usb PHY breakout r%s' % REV, -12.0, 14.2, 1.0)
-    text('CERN-OHL-S-2.0', 17.0, 14.3, 0.8)
+    text('fw2usb PHY breakout r%s' % REV, -10.0, -15.3)
+    text('CERN-OHL-S-2.0', 10.0, -15.3)
     text('J2', J2_X + 1.27, J2_Y - 2.3); text('1', J2_X - 1.9, J2_Y)
-    text('3V3', 6.4, 9.9); text('GND', 6.4, 12.44); text('J3', 9.0, 14.6)
+    text('3V3', 13.8, 10.0); text('GND', 13.8, 12.3); text('J3', 9.0, 14.6)
     text('J1 FW400', 13.5, 5.6); text('U1', -7.0, -9.0); text('Y1', -6.3, 12.6)
     path = str(ROOT / 'phy-breakout.kicad_pcb')
     k.SaveBoard(path, board)

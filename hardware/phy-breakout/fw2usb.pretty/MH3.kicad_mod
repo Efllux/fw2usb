@@ -7,7 +7,7 @@
 		(at 0 0 0)
 		(layer "F.SilkS")
 		(hide yes)
-		(uuid "b628c0e3-62f8-4cab-8028-43c08ecaaac3")
+		(uuid "9e873b7d-0550-48b7-ab2a-99b10a173c33")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -19,7 +19,7 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "3131ba61-951a-4d4d-88b9-72acaaa38da1")
+		(uuid "609f3a27-5025-4f5b-ac76-40f361c296bc")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -31,7 +31,7 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "b6aa7747-ac38-4f9f-84ae-7ff8a93a2cb3")
+		(uuid "242aaae1-74c7-4c5f-a1ee-225145673240")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -43,7 +43,7 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "0b73604a-63ed-4ebd-9c5e-5fa576ceb92a")
+		(uuid "1178cc0e-d040-435e-a06e-0f7e91e64dba")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -55,7 +55,7 @@
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "a741a0d2-4996-48b2-bc75-e4da7f683a4d")
+		(uuid "a92ff121-8e1a-4597-b13d-b983c6c9fc92")
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -69,6 +69,6 @@
 		(size 3.2 3.2)
 		(drill 3.2)
 		(layers "*.Mask" "F.Cu" "In1.Cu" "In2.Cu" "B.Cu")
-		(uuid "52abffce-887e-4233-bcfd-540cfd2ce33a")
+		(uuid "bab0a839-71da-4972-98cd-7e72f7cc3fb2")
 	)
 )

@@ -1,40 +1,10 @@
 ** Drc report for phy-breakout.kicad_pcb **
-** Created on 2026-11-13T00:30:42+0100 **
+** Created on 2026-11-13T05:27:36+0100 **
 
 ** Found 0 DRC violations **
 
 ** Found 0 unconnected pads **
 
-** Found 10 Footprint errors **
-[net_conflict]: Pad missing net given by schematic (unconnected-(J1-VP-Pad1)).
-    Local override; warning
-    @(118.6500 mm, 80.2500 mm): Pad 1 [<no net>] of J1 on F.Cu
-[net_conflict]: Pad missing net given by schematic (unconnected-(U1-PINT-Pad1)).
-    Local override; warning
-    @(93.2000 mm, 75.2500 mm): Pad 1 [<no net>] of U1 on F.Cu
-[net_conflict]: Pad missing net given by schematic (unconnected-(U1-TPB0--Pad41)).
-    Local override; warning
-    @(106.8000 mm, 84.7500 mm): Pad 41 [<no net>] of U1 on F.Cu
-[net_conflict]: Pad missing net given by schematic (unconnected-(U1-TPB0+-Pad42)).
-    Local override; warning
-    @(106.8000 mm, 84.2500 mm): Pad 42 [<no net>] of U1 on F.Cu
-[net_conflict]: Pad missing net given by schematic (unconnected-(U1-TPA0--Pad45)).
-    Local override; warning
-    @(106.8000 mm, 82.7500 mm): Pad 45 [<no net>] of U1 on F.Cu
-[net_conflict]: Pad missing net given by schematic (unconnected-(U1-TPA0+-Pad46)).
-    Local override; warning
-    @(106.8000 mm, 82.2500 mm): Pad 46 [<no net>] of U1 on F.Cu
-[net_conflict]: Pad missing net given by schematic (unconnected-(U1-TPBIAS0-Pad47)).
-    Local override; warning
-    @(106.8000 mm, 81.7500 mm): Pad 47 [<no net>] of U1 on F.Cu
-[net_conflict]: Pad missing net given by schematic (unconnected-(U1-TPA1--Pad52)).
-    Local override; warning
-    @(106.8000 mm, 79.2500 mm): Pad 52 [<no net>] of U1 on F.Cu
-[net_conflict]: Pad missing net given by schematic (unconnected-(U1-TPA1+-Pad53)).
-    Local override; warning
-    @(106.8000 mm, 78.7500 mm): Pad 53 [<no net>] of U1 on F.Cu
-[net_conflict]: Pad missing net given by schematic (unconnected-(U1-TPBIAS1-Pad54)).
-    Local override; warning
-    @(106.8000 mm, 78.2500 mm): Pad 54 [<no net>] of U1 on F.Cu
+** Found 0 Footprint errors **
 
 ** End of Report **
