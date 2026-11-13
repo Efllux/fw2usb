@@ -6,7 +6,7 @@ Stream: CIP-like PCM plus capture counter/status quadlets. Control: Vendor regis
 
 ## Start, clock and recovery
 
-Select formats/rate, reserve resources; program TX channel, unknown register=2, RX channel, start=1, RX on=1, option=0x2000, multiplex PCM enable; add playback at peer speed and capture at S400; start event-count replay domain (16000 initial skips when needed), wait ready. Failure stops domain and finishes session.
+Outline of the start sequence, summarized from the pinned implementation below (specific register addresses and values are intentionally not reproduced and are [verify] against that source and captures): select the format and rate and reserve bus resources; configure the device's transmit and receive channels and enable streaming through its vendor registers; set a device option word [verify]; enable PCM multiplexing; add the playback stream at the peer's speed and the capture stream at S400; start an event-count replay domain, which may need an initial number of skipped cycles [verify value]; then wait until the stream is ready. On failure, stop the domain and finish the session.
 
 Capture includes two non-PCM quadlets; MIDI/status is not a generic AM824 layout. Firmware can delay event multiplexing after rate change; received SYT ignored, packet cadence matters. Unknown register purposes must remain explicit.
 

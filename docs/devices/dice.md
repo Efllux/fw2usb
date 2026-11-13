@@ -73,6 +73,11 @@ FFADO registration indicates a source match, not fw2usb or current FFADO validat
 | Allen and Heath | Zed R16 | 0x000004C4/0x00000000 | ? / ? / ? | [match](https://github.com/adiknoth/ffado/blob/4b7f9e86e59ce95f5c60d5eb3070bc75a3dfdd3f/libffado/configuration#L810-L817) |
 | Midas | Venice F32 | 0x0010C73F/0x00000001 | ? / ? / ? | [match](https://github.com/adiknoth/ffado/blob/4b7f9e86e59ce95f5c60d5eb3070bc75a3dfdd3f/libffado/configuration#L818-L825) |
 
+Note: the "Saffire PRO 26" above (DICE, ROM 0x130e/0x12) is a different product
+from the "Saffire PRO 26 I/O" (BeBoB, see [bebob.md](bebob.md)). Do not merge their
+profiles or channel counts. The PRO 40 also exists in a TCD3070-based variant
+with a different, fixed layout (see below).
+
 ## Primary implementation references
 
 - [sound/firewire/dice/dice-stream.c:1–699](https://github.com/torvalds/linux/blob/7475ea8b58616b33c04afb976cf0fbaad9dd63fb/sound/firewire/dice/dice-stream.c#L1-L699)
