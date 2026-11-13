@@ -47,3 +47,21 @@ See [docs/SOFT-PHY.md](docs/SOFT-PHY.md). Runs in parallel; the chip-PHY path st
 
 ## Later
 - SBP-2 disks over raw-link (host-side), DV capture, MOTU/RME/Apogee profiles, Windows/Linux host support.
+
+## Three-tier product acceptance
+
+- [ ] Tier 1: async UAC2 composite descriptors, explicit feedback, device-master
+  rate estimation from SYT or family timestamp, no SRC; profile admission at each rate.
+- [ ] Tier 2: always-present vendor interface in the same configuration; mixer and
+  routing writes during a one-hour duplex run without reset or discontinuity.
+- [ ] Tier 3: app-command persistent switch, distinct raw PID, button recovery;
+  libraw1394/libusb shim, FFADO dependency audit, CoreAudio AudioServerPlugIn;
+  later Linux kernel support. Validate SBP-2 and DV/HDV independently.
+- [ ] Signed USB DFU, two SPI slots, protected golden image, watchdog rollback;
+  power-cut tests at every journal/download step, root rotation and downgrade policy.
+- [ ] Separately signed bounded profile blobs; reject wrong board/family/schema.
+- [ ] Cover every family in docs/DEVICES.md; model-specific captures precede support claims.
+
+Draft wire contracts: [control](docs/protocol/control.md),
+[raw tunnel](docs/protocol/raw-tunnel.md), [profiles](docs/protocol/profiles.md).
+These are proposed interfaces requiring implementation/interoperability testing.
