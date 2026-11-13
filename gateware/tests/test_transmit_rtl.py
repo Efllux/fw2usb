@@ -16,27 +16,32 @@ class TransmitRtlTest(unittest.TestCase):
                     p = TransmitPhy()
                     p.grant(speed)
                     ctx.set(dut.speed, speed)
-                    ctx.set(dut.grant, 1)
+                    # Grant on the pins: the adapter sits behind the input
+                    # flip-flops and cannot see it in this cycle.
                     self.assertEqual(ctx.get(dut.oe), 0)
                     self.assertEqual(p.tick(), 3)
                     await ctx.tick()
-                    ctx.set(dut.grant, 0)
-                    self.assertEqual(ctx.get(dut.oe), 0)
-                    self.assertEqual(p.tick(), 0)
-                    await ctx.tick()
+                    # The registered grant coincides with the PHY's turnaround
+                    # idle. The adapter takes its first byte here, and its
+                    # registered outputs reach the pins in the next cycle.
+                    ctx.set(dut.grant, 1)
                     payload = b'' if empty else bytes(range(256))
                     offset = 0
                     errors = 0
-                    for _ in range(1100):
+                    for step in range(1100):
                         ctx.set(dut.valid, offset < len(payload))
                         ctx.set(dut.byte, (payload[min(offset, 255)] if payload else 0))
                         ctx.set(dut.last, offset == 255 and not truncated)
                         ready = ctx.get(dut.ready)
-                        p.tick(ctx.get(dut.ctl) if ctx.get(dut.oe) else None,
-                               ctx.get(dut.data))
+                        driven = p.tick(ctx.get(dut.ctl) if ctx.get(dut.oe) else None,
+                                        ctx.get(dut.data))
+                        if step == 0:
+                            self.assertEqual(ctx.get(dut.oe), 0)
+                            self.assertEqual(driven, 0)  # PHY turnaround idle
                         if ready:
                             offset += 1
                         await ctx.tick()
+                        ctx.set(dut.grant, 0)
                         errors += ctx.get(dut.underrun)
                         if ctx.get(dut.done):
                             break
@@ -62,20 +67,30 @@ class TransmitRtlTest(unittest.TestCase):
                 p.grant(2)
                 ctx.set(dut.speed, 2)
                 ctx.set(dut.allow_hold, 1)
-                ctx.set(dut.grant, 1)
-                p.tick()
+                self.assertEqual(p.tick(), 3)  # grant on the pins
                 await ctx.tick()
-                ctx.set(dut.grant, 0)
-                p.tick()
-                await ctx.tick()
-                for _ in range(min(wait, 47)):
-                    self.assertEqual(ctx.get(dut.ctl), 1)
-                    p.tick(ctx.get(dut.ctl), ctx.get(dut.data))
-                    await ctx.tick()
-                if wait <= 47:
+
+                def supply():
                     ctx.set(dut.valid, 1)
                     ctx.set(dut.byte, 0xa5)
                     ctx.set(dut.last, 1)
+                # Outputs are registered, so the byte must be offered one cycle
+                # before the pin cycle that carries it: in the turnaround cycle
+                # for no hold, otherwise while the last wanted hold is on the pins.
+                ctx.set(dut.grant, 1)
+                if wait == 0:
+                    supply()
+                self.assertEqual(ctx.get(dut.oe), 0)
+                self.assertEqual(p.tick(), 0)  # PHY turnaround idle
+                await ctx.tick()
+                ctx.set(dut.grant, 0)
+                for held in range(min(wait, 47)):
+                    self.assertEqual(ctx.get(dut.oe), 1)
+                    self.assertEqual(ctx.get(dut.ctl), 1)
+                    if held == wait - 1:
+                        supply()
+                    p.tick(ctx.get(dut.ctl), ctx.get(dut.data))
+                    await ctx.tick()
                 errors = 0
                 for _ in range(8):
                     p.tick(ctx.get(dut.ctl) if ctx.get(dut.oe) else None,
@@ -106,17 +121,20 @@ class TransmitRtlTest(unittest.TestCase):
                     p.grant(speed, multispeed=multispeed)
                     ctx.set(dut.speed, speed)
                     ctx.set(dut.multispeed, multispeed)
+                    self.assertEqual(p.tick(), 3)  # grant on the pins
+                    await ctx.tick()
+                    # Registered grant during the PHY turnaround idle; the
+                    # prebuffered byte is taken in this cycle.
                     ctx.set(dut.grant, 1)
-                    p.tick()
-                    await ctx.tick()
-                    ctx.set(dut.grant, 0)
-                    p.tick()
-                    await ctx.tick()
                     ctx.set(dut.valid, 1)
                     ctx.set(dut.byte, 0xa5)
                     ctx.set(dut.last, 1)
                     ctx.set(dut.concatenate, 1)
                     ctx.set(dut.next_speed, next_speed)
+                    self.assertEqual(ctx.get(dut.oe), 0)
+                    self.assertEqual(p.tick(), 0)
+                    await ctx.tick()
+                    ctx.set(dut.grant, 0)
                     errors = 0
                     for _ in range(12):
                         p.tick(ctx.get(dut.ctl) if ctx.get(dut.oe) else None,

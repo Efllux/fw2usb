@@ -2,9 +2,14 @@ import unittest
 from amaranth.sim import Simulator
 from fw2usb.link_layer import LinkLayer
 from sim.phy import receive_samples
+from fw2usb.cycle_follower import PIPELINE
 from sim.transactions import crc
 
 PERIOD=128*8000*3072
+# Idle cycles after a packet before its correction is observed. The follower
+# computes the correction over PIPELINE cycles after acceptance (it used to be
+# one combinational step), so the former five-cycle settle grows by that much.
+SETTLE=5+PIPELINE
 
 def packed(t):
     t%=PERIOD
@@ -23,7 +28,7 @@ class CycleFollowerTest(unittest.TestCase):
             c.set(d.follow_cycles,1);c.set(d.root_node,0xffc1)
             async def receive(wire,speed=2):
                 previous=ticks(c.get(d.cycle.timer.value))
-                for ctl,data in list(receive_samples(wire,speed=speed))+[(0,0)]*5:
+                for ctl,data in list(receive_samples(wire,speed=speed))+[(0,0)]*SETTLE:
                     c.set(d.phy.ctl_in,ctl);c.set(d.phy.data_in,data);await c.tick()
                     now=ticks(c.get(d.cycle.timer.value))
                     self.assertLess((now-previous)%PERIOD,PERIOD//2,'cycle time went backward')
@@ -75,7 +80,7 @@ class CycleFollowerTest(unittest.TestCase):
                     # phase claim follows from these bounded synthetic delays.
                     timestamp=packed(master())
                     for _ in range(i%3):await step()
-                    for ctl,data in list(receive_samples(cycle_packet(timestamp),speed=i%3))+[(0,0)]*5:await step(ctl,data)
+                    for ctl,data in list(receive_samples(cycle_packet(timestamp),speed=i%3))+[(0,0)]*SETTLE:await step(ctl,data)
                     self.assertLessEqual(abs(master()-ticks(c.get(d.cycle.timer.value))),5)
                     for _ in range(6144):await step()
                 self.assertEqual(c.get(d.follower.updates),16)

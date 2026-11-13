@@ -120,6 +120,10 @@ class RawWorkerTest(unittest.TestCase):
             allow_grant[0]=False
             timeout=struct.pack('<HBBQHHII',0xffc2,4,2,CSR+0x400,0,0,4,1)
             reply=await send(0x100,10,timeout);self.assertEqual(int.from_bytes(reply[16:20],'little'),6)
+            # The reply's last byte and the PHY's bus-reset status race here.
+            # The status pairs now pass through the input flip-flops, so the
+            # pending clear lands one cycle after the reply instead of with it.
+            await ctx.tick()
             self.assertFalse(ctx.get(dut.link.phy.pending),"timed-out request still pending at PHY")
             ctx.set(dut.session_reset,1);await ctx.tick();ctx.set(dut.session_reset,0)
             info=await send(3,11);self.assertEqual(info[24:26],struct.pack('<H',0xffc0))

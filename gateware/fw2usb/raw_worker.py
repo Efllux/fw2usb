@@ -99,7 +99,7 @@ class RawWorker(Elaboratable):
         tx_length=Cat(*parameters[24:28]);tx_target=Cat(*parameters[12:16])
         m.d.comb += [window.now.eq(self.link.cycle.timer.value),window.target.eq(tx_target),window.length.eq(tx_length[:16]),window.speed.eq(self.iso_speed),
                      iso_tx.length.eq(tx_length[:16]),iso_tx.channel.eq(self.iso_channel),iso_tx.tag.eq(parameters[29][:2]),iso_tx.sy.eq(parameters[30][:4]),
-                     iso_tx.data_byte.eq(self.command.read_data),iso_tx.ready.eq(self.link.tx_ready & tx_owned & tx_started),
+                     iso_tx.data_byte.eq(self.command.read_data),iso_tx.ready.eq(self.link.tx_ready & tx_owned),
                      self.link.user_hold.eq(~tx_owned)]
         m.d.comb += [service.rx.start.eq(self.link.phy.rx.start & ~self.link.selfid_phase),
                      service.rx.valid.eq(self.link.phy.rx.valid & ~self.link.selfid_phase),service.rx.byte.eq(self.link.phy.rx.byte),

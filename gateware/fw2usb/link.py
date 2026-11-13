@@ -128,6 +128,8 @@ class AckDecision(Elaboratable):
 
     Header failure, broadcast, stream and cycle-start never generate ACKs.
     Address match and response capacity are supplied by the transaction layer.
+    valid/byte are registered; now_valid/now_byte give the same decision
+    combinationally in the ``end`` cycle for a grant that arrives at once.
     """
     def __init__(self):
         self.end = Signal()
@@ -139,14 +141,18 @@ class AckDecision(Elaboratable):
         self.tcode = Signal(4)
         self.valid = Signal()
         self.byte = Signal(8)
+        self.now_valid = Signal()
+        self.now_byte = Signal(8)
 
     def elaborate(self, platform):
         m = Module()
         code = Signal(4)
         response = (self.tcode == 2) | (self.tcode == 6) | (self.tcode == 7) | (self.tcode == 11)
-        m.d.comb += code.eq(Mux(~self.data_good, 13, Mux(~self.capacity, 4, Mux(response, 1, 2))))
+        m.d.comb += [code.eq(Mux(~self.data_good, 13, Mux(~self.capacity, 4, Mux(response, 1, 2)))),
+                     self.now_valid.eq(self.end & self.addressed & ~self.broadcast & self.header_good &
+                                       (self.tcode != 10) & (self.tcode != 8)),
+                     self.now_byte.eq(Cat(~code, code))]
         m.d.sync += self.valid.eq(0)
-        with m.If(self.end & self.addressed & ~self.broadcast & self.header_good &
-                  (self.tcode != 10) & (self.tcode != 8)):
-            m.d.sync += [self.valid.eq(1), self.byte.eq(Cat(~code, code))]
+        with m.If(self.now_valid):
+            m.d.sync += [self.valid.eq(1), self.byte.eq(self.now_byte)]
         return m
