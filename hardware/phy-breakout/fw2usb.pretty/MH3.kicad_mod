@@ -1,0 +1,74 @@
+(footprint "MH3"
+	(version 20240108)
+	(generator "pcbnew")
+	(generator_version "8.0")
+	(layer "F.Cu")
+	(property "Reference" "H4"
+		(at 0 0 0)
+		(layer "F.SilkS")
+		(hide yes)
+		(uuid "b628c0e3-62f8-4cab-8028-43c08ecaaac3")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "M3"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "3131ba61-951a-4d4d-88b9-72acaaa38da1")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Footprint" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "b6aa7747-ac38-4f9f-84ae-7ff8a93a2cb3")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "0b73604a-63ed-4ebd-9c5e-5fa576ceb92a")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "a741a0d2-4996-48b2-bc75-e4da7f683a4d")
+		(effects
+			(font
+				(size 1.27 1.27)
+				(thickness 0.15)
+			)
+		)
+	)
+	(attr board_only exclude_from_pos_files exclude_from_bom)
+	(pad "" np_thru_hole circle
+		(at 0 0)
+		(size 3.2 3.2)
+		(drill 3.2)
+		(layers "*.Mask" "F.Cu" "In1.Cu" "In2.Cu" "B.Cu")
+		(uuid "52abffce-887e-4233-bcfd-540cfd2ce33a")
+	)
+)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Create a self-contained, labeled KiCad8 schematic from the reviewed net table."""
-from design import ROOT,parts,uid,q
+from design import ROOT,REV,parts,uid,q
 
 def effect(justify=''):
  return '(effects (font (size 1.0 1.0))'+(' (justify '+justify+')' if justify else '')+')'
@@ -26,7 +26,7 @@ def library(p):
 
 root=uid('schematic')
 s=f'''(kicad_sch (version 20231120) (generator "fw2usb") (uuid {root}) (paper "A2")
- (title_block (title "fw2usb legacy PHY breakout - engineering WIP") (rev "0.1") (comment 1 "Public TI SLLSFA1; legacy link, port2 DS; external3.3V; VP NC"))
+ (title_block (title "fw2usb PHY breakout") (rev "{REV}") (comment 1 "TSB41BA3F-EP, 1394a link interface, port 2 data-strobe only; external 3.3 V; cable power not connected") (comment 2 "Net list drawn as labelled pins. See REVIEW.md for datasheet citations. CERN-OHL-S v2."))
  (lib_symbols {''.join(library(p) for p in parts)})'''
 for index,p in enumerate(parts):
  if p['ref']=='U1':x,y=60.96,101.6
@@ -50,10 +50,9 @@ for index,p in enumerate(parts):
   end=round(px+(-5.08 if angle==0 else 5.08),4)
   s+=f'(wire (pts (xy {px} {py}) (xy {end} {py})) (stroke (width 0) (type default)) (uuid {uid(p["ref"]+number+"w")}))'
   s+=f'(label {q(net)} (at {end} {py} 0) {effect("right" if angle==0 else "left")} (uuid {uid(p["ref"]+number+"label")}))'
-s+='(text "WIP: Not released for fabrication. ERC/layout/BOM verification pending. No cable VP connection." (at 60 190 0) '+effect('left')+' (uuid '+uid('notice')+'))'
+s+='(text "Strap mode 3 (S5=0 S4=1 S3=0): ports 2 and 1 data-strobe only, port 0 bilingual and unused. Cable power (VP) is not connected." (at 60 190 0) '+effect('left')+' (uuid '+uid('notice')+'))'
 s+='(sheet_instances (path "/" (page "1"))))\n'
 (ROOT/'phy-breakout.kicad_sch').write_text(s)
-(ROOT/'phy-breakout.kicad_pro').write_text('{}\n')
 (ROOT/'sym-lib-table').write_text('(sym_lib_table (version 7) (lib (name "fw2usb") (type "KiCad") (uri "${KIPRJMOD}/fw2usb.kicad_sym") (options "") (descr "Original TI fact based symbols")))\n')
 (ROOT/'fw2usb.kicad_sym').write_text('(kicad_symbol_lib (version 20231120) (generator "fw2usb") '+''.join(library(p).replace('"fw2usb:'+p['ref']+'"','"'+p['ref']+'"',1) for p in parts)+')\n')
 print('wrote',ROOT/'phy-breakout.kicad_sch')
