@@ -1,0 +1,230 @@
+* SPDX-License-Identifier: CERN-OHL-S-2.0
+* Bilingual-port front end: architecture and component-level study models.
+* NOT vendor macromodels. Transistor cards are written from datasheet headline
+* numbers (fT, Ccb, hFE); every value is [verify]. See ../README.md.
+*
+* Decks must define models QN and QP before including this file (run.py does).
+
+* ---------------------------------------------------------------- cable ---
+* One conductor, 0.5 m: 55 ohm to ground (110 ohm differential, uncoupled
+* conductors as in soft-phy-afe), 5.05 ns/m, plus an R-L ladder fitted to the
+* 1394a cable attenuation limit (2.3/3.2/5.8 dB at 100/200/400 MHz for 4.5 m).
+* The fit and its sqrt(f) extrapolation above 400 MHz are assumptions.
+.subckt cseg a b
+T1 a 0 m 0 Z0=55 TD=2.525n
+R0 m m1 0.692
+R1 m1 m2 1.62
+L1 m1 m2 12.9n
+R2 m2 m3 4.23
+L2 m2 m3 2.69n
+R3 m3 b 8.49
+L3 m3 b 2.25n
+.ends cseg
+
+.subckt cond a b
+X1 a n1 cseg
+X2 n1 n2 cseg
+X3 n2 n3 cseg
+X4 n3 n4 cseg
+X5 n4 n5 cseg
+X6 n5 n6 cseg
+X7 n6 n7 cseg
+X8 n7 n8 cseg
+X9 n8 b cseg
+.ends cond
+
+* 4.5 m pair: p,n at one end, q,r at the other.
+.subckt cable p n q r
+Xp p q cond
+Xn n r cond
+.ends cable
+
+* ----------------------------------------------------------------- peer ---
+* Peer TPA side (faces our TPB): 2x55 ohm to its TPBIAS, 1 uF, 5 ohm source
+* impedance (assumption), 5 pF per conductor input loading.
+.subckt peer_tpa p n bias
+Rp p ct 55
+Rn n ct 55
+Rb bias ct 5
+Cb ct 0 1u
+Cp p 0 5p
+Cn n 0 5p
+.ends peer_tpa
+
+* Peer TPB side (faces our TPA): 2x55 ohm to 5k || 270 pF.
+.subckt peer_tpb p n
+Rp p ct 55
+Rn n ct 55
+Rg ct 0 5k
+Cg ct 0 270p
+Cp p 0 5p
+Cn n 0 5p
+.ends peer_tpb
+
+* Ideal peer driver: differential current amp*cmd (cmd -1/0/1) and a
+* per-conductor common-mode sink v(sp) amperes (speed signal or imbalance).
+.subckt idrv p n cmd sp params: amp=4m
+Bsig n p I={amp*v(cmd)}
+Bsp p 0 I={v(sp)}
+Bsn n 0 I={v(sp)}
+Rout p n 100k
+.ends idrv
+
+* ------------------------------------------------------- our front end ---
+* FPGA pad: ideal logic source "d" behind ron, 6 pF at the pad.
+* ron = 22 ohm is an assumed LVCMOS33 16 mA output resistance [verify].
+* ron = 3.3k with d = 0 models the 1 mA worst-case hot-socket leakage of an
+* unpowered ECP5 top/bottom-bank pin; ron = 1g models a tri-stated pin.
+
+* Bias references: one PNP and one NPN diode-connected reference, each fed
+* through the same pad + emitter resistor as a driver leg so pad resistance
+* and Vbe track. Released pads let 100k park VBP at VDD and VBN at ground.
+.subckt refs vdd vbp vbn params: ron=22 re=91 rset=499
+Bh h1 0 V={v(vdd)}
+Rh1 h1 hp {ron}
+Rep hp ep {re}
+Qpr vbp vbp ep QP
+Rsp vbp lp {rset}
+Rl1 lp 0 {ron}
+Rh2 h1 hn {ron}
+Rsn hn vbn {rset}
+Qnr vbn vbn en QN
+Ren en ln {re}
+Rl2 ln 0 {ron}
+Rpu vbp vdd 100k
+Rpd vbn 0 100k
+Cbp vbp 0 100n
+Cbn vbn 0 100n
+.ends refs
+
+* Driver legs for one pair. dsp/dsn: PNP source pads for P/N (high = on).
+* dkp/dkn: NPN sink pads for P/N (low = on).
+.subckt legs p n vbp vbn dsp dsn dkp dkn params: ron=22 re=91 ce=4.7p
+Rosp dsp xsp {ron}
+Cxsp xsp 0 6p
+Resp xsp esp {re}
+Cesp xsp esp {ce}
+Qsp p vbp esp QP
+Rosn dsn xsn {ron}
+Cxsn xsn 0 6p
+Resn xsn esn {re}
+Cesn xsn esn {ce}
+Qsn n vbp esn QP
+Rokp dkp xkp {ron}
+Cxkp xkp 0 6p
+Rekp xkp ekp {re}
+Cekp xkp ekp {ce}
+Qkp p vbn ekp QN
+Rokn dkn xkn {ron}
+Cxkn xkn 0 6p
+Rekn xkn ekn {re}
+Cekn xkn ekn {ce}
+Qkn n vbn ekn QN
+.ends legs
+
+* S200 and S400 speed-signal sinks on TPB. d2 = S200 pads, d4 = extra S400
+* pads (S400 = both on). Low = on. One pad per conductor per level.
+.subckt speed p n vbn d2p d2n d4p d4n params: ron=22 r2=100 r4=47
+Ro2p d2p x2p {ron}
+Re2p x2p e2p {r2}
+Q2p p vbn e2p QN
+Ro2n d2n x2n {ron}
+Re2n x2n e2n {r2}
+Q2n n vbn e2n QN
+Ro4p d4p x4p {ron}
+Re4p x4p e4p {r4}
+Q4p p vbn e4p QN
+Ro4n d4n x4n {ron}
+Re4n x4n e4n {r4}
+Q4n n vbn e4n QN
+.ends speed
+
+* Everything that hangs on one pair besides drivers and termination:
+* SN65LVDS34 input (5 pF, 120k = 20 uA at 2.4 V), ESD array 0.5 pF, pads and
+* stubs 1.5 pF, and the two arbitration comparators with resistive offset
+* networks (threshold = VDD*ra/rb, about 124 mV). Comparator inputs are 3 pF
+* with clamp diodes to VDD, which matter when the board is unpowered.
+* Outputs: (app-apn) > 0 means "1", (anp-ann) > 0 means "0".
+.model DCLAMP D (IS=1e-14 N=1 RS=10 CJO=0)
+.subckt loads p n vdd app apn anp ann params: ra=10k rb=267k cpar=7p
+Cp p 0 {cpar}
+Cn n 0 {cpar}
+Rlp p 0 120k
+Rln n 0 120k
+* positive comparator: + = k*p, - = k*n + (1-k)*VDD
+Ra1 p app {ra}
+Rb1 app 0 {rb}
+Ra2 n apn {ra}
+Rb2 apn vdd {rb}
+* negative comparator: + = k*n, - = k*p + (1-k)*VDD
+Ra3 n anp {ra}
+Rb3 anp 0 {rb}
+Ra4 p ann {ra}
+Rb4 ann vdd {rb}
+C1 app 0 3p
+C2 apn 0 3p
+C3 anp 0 3p
+C4 ann 0 3p
+D1 app vdd DCLAMP
+D2 apn vdd DCLAMP
+D3 anp vdd DCLAMP
+D4 ann vdd DCLAMP
+.ends loads
+
+* Our TPA termination: 2x54.9 ohm to the TPBIAS node (1 uF), plus the
+* common-mode sense (2x10k, 3 pF) used by the speed-detect comparators.
+.subckt term_a p n bias cm
+Rp p bias 54.9
+Rn n bias 54.9
+Cb bias 0 1u
+Rcp p cm 10k
+Rcn n cm 10k
+Ccm cm 0 3p
+.ends term_a
+
+* Our TPB termination: 2x54.9 ohm to 5k || 270 pF, plus the slow common-mode
+* sense (2x100k) used by the bias-detect comparator.
+.subckt term_b p n ct cm
+Rp p ct 54.9
+Rn n ct 54.9
+Rg ct 0 5k
+Cg ct 0 270p
+Rcp p cm 100k
+Rcn n cm 100k
+Ccm cm 0 10p
+.ends term_b
+
+* SerDes transmit branch on TPB: 10 nF blocking capacitors and 75 ohm pads.
+* sp/sn are the SerDes pins (2 pF each, assumption for TLK1221/ECP5 [verify]).
+.subckt sd_tx p n sp sn params: rs=75
+Ccp p a 10n
+Ccn n b 10n
+Rsp a sp {rs}
+Rsn b sn {rs}
+Cpp sp 0 2p
+Cpn sn 0 2p
+Rlp sp 0 1meg
+Rln sn 0 1meg
+.ends sd_tx
+
+* SerDes receive branch on TPA: 10 nF blocking capacitors into high-impedance
+* pins biased by 3k to 1.5 V (TLK1221 figure 11 network, Thevenin).
+.subckt sd_rx p n sp sn
+Ccp p sp 10n
+Ccn n sn 10n
+Cpp sp 0 2p
+Cpn sn 0 2p
+Vb vb 0 1.5
+Rbp sp vb 3k
+Rbn sn vb 3k
+.ends sd_rx
+
+* Optional 2:1 switch, one differential channel, behavioural: 6 ohm on
+* resistance, 1.5 pF each side when on, 1 pF stub for the off port. Values
+* are typical of USB 3 class switches, not a specific part [verify].
+.subckt mux_on a b
+Ca a 0 1.5p
+Coff a 0 1p
+R a b 6
+Cb b 0 1.5p
+.ends mux_on
