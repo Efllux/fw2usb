@@ -39,12 +39,17 @@ class IsoTxWindow(Elaboratable):
         self.now=Signal(32);self.target=Signal(32);self.length=Signal(16);self.speed=Signal(2)
         self.valid=Signal();self.future=Signal();self.open=Signal();self.late=Signal()
     def elaborate(self,p):
-        m=Module();current=Signal(20);target=Signal(20);distance=Signal(20);budget=Signal(20)
-        m.d.comb += [current.eq(self.now[25:32]*8000+self.now[12:25]),target.eq(self.target[25:32]*8000+self.target[12:25]),
-                     distance.eq(Mux(target>=current,target-current,target+1024000-current)),
-                     budget.eq(Mux(self.speed==0,(self.length+12)*4,Mux(self.speed==1,(self.length+12)*2,self.length+12))+64),
+        # Seconds and cycles are compared as fields: converting both times to
+        # a cycle count needs two multipliers in the admission path for nothing.
+        m=Module();budget=Signal(12);borrow=Signal();ahead=Signal(7);same=Signal();room=Signal(13)
+        now_cycle=self.now[12:25];now_second=self.now[25:32];target_cycle=self.target[12:25];target_second=self.target[25:32]
+        m.d.comb += [borrow.eq(target_cycle<now_cycle),ahead.eq(target_second-now_second-borrow),
+                     same.eq((target_cycle==now_cycle)&(target_second==now_second)),
+                     budget.eq(Mux(self.speed==0,(self.length[:9]+12)<<2,Mux(self.speed==1,(self.length[:9]+12)<<1,self.length[:9]+12))+64),
+                     room.eq(self.now[:12]+budget),
                      self.valid.eq((self.now[12:25]<8000)&(self.now[:12]<3072)&(self.target[12:25]<8000)&(self.target[:12]==0)&(self.speed<3)&(self.length<=256)),
-                     self.future.eq(self.valid & (distance!=0)&(distance<512000)),
-                     self.open.eq(self.valid & (distance==0)&(self.now[:12]+budget<3072)),
+                     # distance in (0, 64 s): seconds difference modulo 128 below 64.
+                     self.future.eq(self.valid & ~same & ~ahead[6]),
+                     self.open.eq(self.valid & same & (room<3072)),
                      self.late.eq(self.valid & ~self.future & ~self.open)]
         return m

@@ -136,9 +136,19 @@ class AmdtpTransmitter(Elaboratable):
 
 
 class SytEngine(Elaboratable):
+    """SYT/blocking schedule, one decision per ``advance`` (one per 125 us cycle).
+
+    The reference model keeps ``phase`` and derives the timestamp offset as
+    ``phase // rate``. Dividing a 32-bit value by the sample rate in one SCLK
+    cycle is far too slow, so the quotient and remainder are carried instead:
+    every phase step is a constant, hence its quotient and remainder by
+    ``rate`` are elaboration-time constants and the update is two small adds.
+    """
     def __init__(self, *, rate=48000, code=2):
         self.rate,self.code = rate,code
         self.interval = 8 if rate <= 48000 else (16 if rate <= 96000 else 32)
+        if 24_576_000*self.interval < 3072*rate:
+            raise ValueError('sample rate too high for the SYT interval')
         self.cycle = Signal(13)
         self.advance = Signal()
         self.data = Signal()
@@ -148,19 +158,26 @@ class SytEngine(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        phase = Signal(32)
-        offset = Signal(16)
-        delayed = Signal(16)
+        # phase == quotient*rate + remainder, with remainder < rate.
+        step_quotient,step_remainder = divmod(24_576_000*self.interval,self.rate)
+        quotient = Signal(range(step_quotient+3072+2))
+        remainder = Signal(range(self.rate))
+        wrapped = Signal()
+        m.d.comb += wrapped.eq(remainder+step_remainder >= self.rate)
+        # offset+0x2e00 split into cycles and ticks; offset < 3072 when used
+        # and 0x2e00 == 3*3072+2560, so the carry is 3 or 4.
+        late = Signal()
+        ticks = Signal(12)
         carry = Signal(3)
-        remainder = Signal(12)
-        m.d.comb += [offset.eq(phase // self.rate),delayed.eq(offset+0x2e00),carry.eq(delayed // 3072),
-                     remainder.eq(delayed % 3072)]
+        m.d.comb += [late.eq(quotient >= 512),
+                     ticks.eq(Mux(late,quotient-512,quotient+2560)),carry.eq(Mux(late,4,3))]
         with m.If(self.advance):
-            with m.If(phase < 3072*self.rate):
-                m.d.sync += [phase.eq(phase+24_576_000*self.interval-3072*self.rate),
+            with m.If(quotient < 3072):
+                m.d.sync += [quotient.eq(quotient+step_quotient-3072+wrapped),
+                             remainder.eq(Mux(wrapped,remainder+step_remainder-self.rate,remainder+step_remainder)),
                              self.data.eq(1),self.fdf.eq(self.code),self.frames.eq(self.interval),
-                             self.syt.eq(Cat(remainder,(self.cycle[:4]+carry)[:4]))]
+                             self.syt.eq(Cat(ticks,(self.cycle[:4]+carry)[:4]))]
             with m.Else():
-                m.d.sync += [phase.eq(phase-3072*self.rate),self.data.eq(0),self.fdf.eq(255),
+                m.d.sync += [quotient.eq(quotient-3072),self.data.eq(0),self.fdf.eq(255),
                              self.frames.eq(0),self.syt.eq(65535)]
         return m

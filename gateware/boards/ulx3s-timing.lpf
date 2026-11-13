@@ -1,0 +1,30 @@
+# Timing-closure constraints for fw2usb.timing_top (build.py --timing).
+# Not a board image: the PHY interposer does not exist yet.
+FREQUENCY PORT "sclk" 49.152 MHZ;
+FREQUENCY PORT "usb_clk" 60 MHZ;
+# Provisional PHY-LINK sites on the ULX3S J1 header (GP0..GP5 / GN0..GN4, bank 0).
+# ECP5 I/O-cell flip-flops can only be used on located pads, so these pins must
+# be placed for the registered PHY-LINK I/O to be checked. Every other pad,
+# including both clock inputs and the whole ULPI bus, is placed by nextpnr.
+LOCATE COMP "phy_ctl[0]" SITE "B11";
+LOCATE COMP "phy_ctl[1]" SITE "C11";
+LOCATE COMP "phy_data[0]" SITE "A10";
+LOCATE COMP "phy_data[1]" SITE "A11";
+LOCATE COMP "phy_data[2]" SITE "A9";
+LOCATE COMP "phy_data[3]" SITE "B10";
+LOCATE COMP "phy_data[4]" SITE "B9";
+LOCATE COMP "phy_data[5]" SITE "C10";
+LOCATE COMP "phy_data[6]" SITE "A7";
+LOCATE COMP "phy_data[7]" SITE "A8";
+LOCATE COMP "phy_lreq" SITE "C8";
+IOBUF PORT "phy_ctl[0]" IO_TYPE=LVCMOS33;
+IOBUF PORT "phy_ctl[1]" IO_TYPE=LVCMOS33;
+IOBUF PORT "phy_data[0]" IO_TYPE=LVCMOS33;
+IOBUF PORT "phy_data[1]" IO_TYPE=LVCMOS33;
+IOBUF PORT "phy_data[2]" IO_TYPE=LVCMOS33;
+IOBUF PORT "phy_data[3]" IO_TYPE=LVCMOS33;
+IOBUF PORT "phy_data[4]" IO_TYPE=LVCMOS33;
+IOBUF PORT "phy_data[5]" IO_TYPE=LVCMOS33;
+IOBUF PORT "phy_data[6]" IO_TYPE=LVCMOS33;
+IOBUF PORT "phy_data[7]" IO_TYPE=LVCMOS33;
+IOBUF PORT "phy_lreq" IO_TYPE=LVCMOS33;

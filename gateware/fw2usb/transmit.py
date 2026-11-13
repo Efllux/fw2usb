@@ -13,6 +13,11 @@ link-owned cycle of Fig 20 (grant, one PHY idle, then the link). There is
 therefore no internal turnaround state, and the first byte (or a hold) is
 taken in the grant cycle itself. ``done``, ``underrun`` and ``config_error``
 are aligned with the pins: ``done`` is high in the first released cycle.
+
+The pad flip-flops carry no reset: an ECP5 I/O cell shares one set/reset among
+its input, output and tristate flip-flops, and the input one has none. Instead
+``abort`` (interface disabled or bus reset) forces the next pad values to
+released/idle; the caller also resets the internal state in that cycle.
 """
 from amaranth import Elaboratable, Module, Mux, Signal
 
@@ -25,6 +30,7 @@ class TransmitAdapter(Elaboratable):
     def __init__(self):
         self.busy = Signal()
         self.grant = Signal()  # registered PHY CTL=11, caller qualifies ownership
+        self.abort = Signal()  # release the pads at the next edge
         self.speed = Signal(2)
         self.allow_hold = Signal()  # permit up to 47 initial wait cycles
         self.valid = Signal()
@@ -35,11 +41,11 @@ class TransmitAdapter(Elaboratable):
         self.next_speed = Signal(2)
         self.multispeed = Signal()  # PHY EMC configuration, sampled on grant
         self.config_error = Signal()
-        self.ctl = Signal(2, attrs=IO_OUTPUT)
-        self.data = Signal(8, attrs=IO_OUTPUT)
+        self.ctl = Signal(2, reset_less=True, attrs=IO_OUTPUT)
+        self.data = Signal(8, reset_less=True, attrs=IO_OUTPUT)
         self.oe = Signal()
         # One active-high tristate control per pin so each fits an I/O cell.
-        self.tristate = Signal(self.PINS, init=(1 << self.PINS) - 1, attrs=IO_OUTPUT)
+        self.tristate = Signal(self.PINS, init=(1 << self.PINS) - 1, reset_less=True, attrs=IO_OUTPUT)
         self.done = Signal()
         self.underrun = Signal()
 
@@ -145,4 +151,6 @@ class TransmitAdapter(Elaboratable):
                              started.eq(0), holds.eq(0)]
             with m.Else():
                 m.d.sync += tail.eq(tail - 1)
+        with m.If(self.abort):
+            m.d.comb += [next_oe.eq(0), next_ctl.eq(0), next_data.eq(0)]
         return m

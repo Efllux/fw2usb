@@ -76,6 +76,7 @@ class PhyLink(Elaboratable):
             serializer.accel.eq(self.request.accel), self.lreq.eq(serializer.lreq),
             grant.eq(self.enable & self.pending & ~self.tx.busy & (ctl == 3)),
             self.tx.grant.eq(grant), self.tx.speed.eq(speed),
+            self.tx.abort.eq(~self.enable | self.bus_reset),
             self.ctl_out.eq(self.tx.ctl), self.data_out.eq(self.tx.data),
             self.oe.eq(self.tx.oe),
             self.ctl_t.eq(self.tx.tristate[:2]), self.data_t.eq(self.tx.tristate[2:]),

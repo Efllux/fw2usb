@@ -56,19 +56,23 @@ def drop_constant_m_pins(path):
     path.write_text(json.dumps(design))
 
 
-def timing(root, out, seed):
+def timing(root, out, seed, synthesize=True):
     """Route fw2usb.timing_top and enforce its clock constraints."""
     from fw2usb.timing_top import TimingTop, CLOCKS_MHZ
     top = TimingTop()
     (out / 'timing.il').write_text(rtlil.convert(top, name='timing', ports=top.ports()))
-    subprocess.run(['yosys', '-q', '-l', 'timing_synth.log', '-p',
-                    'read_rtlil timing.il; synth_ecp5 -top timing -json timing.json; check -assert'],
-                   cwd=out, check=True)
-    drop_constant_m_pins(out / 'timing.json')
-    (out / 'timing.lpf').write_text(''.join(
-        f'FREQUENCY PORT "{name}" {mhz} MHZ;\n' for name, mhz in CLOCKS_MHZ.items()))
+    if synthesize:
+        # boards/ecp5_pad_ff.v makes the tagged pad flip-flops plain D
+        # flip-flops so that nextpnr can pack them into the I/O cells.
+        pad_rule = root / 'boards/ecp5_pad_ff.v'
+        subprocess.run(['yosys', '-q', '-l', 'timing_synth.log', '-p',
+                        'read_rtlil timing.il; synth_ecp5 -top timing; '
+                        f'techmap -map {pad_rule} a:syn_useioff t:TRELLIS_FF %i; '
+                        'check -assert; write_json timing.json'],
+                       cwd=out, check=True)
+        drop_constant_m_pins(out / 'timing.json')
     # No --timing-allow-fail: nextpnr itself exits non-zero on a violated clock.
-    subprocess.run(['nextpnr-ecp5', *DEVICE, '--json', 'timing.json', '--lpf', 'timing.lpf',
+    subprocess.run(['nextpnr-ecp5', *DEVICE, '--json', 'timing.json', '--lpf', str(root / 'boards/ulx3s-timing.lpf'),
                     '--lpf-allow-unconstrained', '--seed', str(seed), '--report', 'timing_report.json',
                     '--log', 'timing_pnr.log', '--quiet'], cwd=out, check=True)
     report = json.loads((out / 'timing_report.json').read_text())
@@ -88,11 +92,14 @@ def timing(root, out, seed):
         print(f'{name}: {achieved[name]:.2f} MHz achieved, {mhz} MHz required: {"PASS" if ok else "FAIL"}')
     use = report['utilization']
     for label, cell in [('LUT4', 'TRELLIS_COMB'), ('FF', 'TRELLIS_FF'), ('EBR', 'DP16KD'),
-                        ('DSP', 'MULT18X18D'), ('I/O-cell FF', 'IOLOGIC')]:
+                        ('DSP', 'MULT18X18D')]:
         print(f'{label}: {use[cell]["used"]}/{use[cell]["available"]}')
-    # Every PHY-LINK pin must have got its flip-flops in the I/O cell:
-    # CTL[0:1] and D[0:7] share one IOLOGIC each for in/out/tristate, plus LREQ.
-    if use['IOLOGIC']['used'] < 11:
+    # nextpnr aborts if a flip-flop tagged syn_useioff cannot be packed, so
+    # this count is a cross-check: CTL[0:1] and D[0:7] share one I/O logic
+    # cell each for their input, output and tristate flip-flops, plus LREQ.
+    io_cells = use['IOLOGIC']['used'] + use['SIOLOGIC']['used']
+    print(f'I/O logic cells: {io_cells}')
+    if io_cells < 11:
         print('PHY-LINK flip-flops were not packed into the I/O cells')
         failed = True
     if failed:
@@ -104,13 +111,15 @@ def main():
     parser.add_argument('--route', action='store_true')
     parser.add_argument('--timing', action='store_true')
     parser.add_argument('--seed', type=int, default=1)
+    parser.add_argument('--reuse-netlist', action='store_true',
+                        help='with --timing: route the existing build/timing.json again')
     parser.add_argument('--core', choices=['smoke', 'lreq', 'status', 'receive', 'transmit', 'phy_link', 'crc32', 'cycle', 'selfid', 'packet_rx', 'packet_tx', 'ack', 'cycle_master', 'link_layer', 'csr', 'rom_reader', 'transaction', 'transaction_link', 'amdtp_rx', 'amdtp_tx', 'syt', 'iso_rx', 'iso_tx', 'usb_raw', 'raw_iso', 'frame_encoder', 'frame_decoder', 'async_request', 'raw_worker', 'usb_bridge', 'usb_audio','raw_iso_tx','cycle_follower'], default='smoke')
     args = parser.parse_args()
     root = Path(__file__).resolve().parent
     out = root / 'build'
     out.mkdir(exist_ok=True)
     if args.timing:
-        return timing(root, out, args.seed)
+        return timing(root, out, args.seed, not args.reuse_netlist)
     if args.route and args.core != 'smoke':
         parser.error('only the safe smoke image has board IO constraints')
     constructors = {'smoke': Heartbeat, 'lreq': LreqSerializer,
