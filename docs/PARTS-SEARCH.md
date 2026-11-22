@@ -119,3 +119,16 @@ LCSC catalogue filter (stock 50 or more, fT 600 MHz or more): 175 NPN parts, **o
 | NPN | S9018 (many makers, e.g. C53261047) | 600-1100 MHz | unverified | 4-5 V | $0.009 | 1600+ | cheapest; Ccb unverified |
 
 Conclusion: the pair MMBTH10 (NPN) plus MMBTH81 (PNP) is the only fully datasheet-verified complementary set. Its cost is negligible (about $0.2 per pair). The PNP stays scarce: the single source is onsemi MMBTH81.
+
+## E. Comparators
+
+Requirement: dual, 40 ns or less, rail-to-rail input at 3.3 V, offset 5 mV or less; note input leakage with supply at 0 V.
+
+| Rank | Part | Verified specs | Lifecycle | Price at 100 | Stock | Verdict |
+|---|---|---|---|---|---|---|
+| 1 | **TLV3202AIDR** (C129325) | tPD 42-47 ns typ, **50 ns max**; Vos 5 mV max (1 mV typ); input range to 200 mV beyond both rails; 2.7-5.5 V | Active (TI) | **$0.610** (LCSC); TI $2.013 | 4215 (LCSC), 44350 (TI) | meets all but a strict 40 ns max |
+| 2 | TLV3502AIDR (C131165) | tPD 4.5 ns typ, 6.4 ns max; **Vos 6.5 mV max**; rail-to-rail I/O | Active (TI) | $1.411 (LCSC); TI $3.074 | 226 (LCSC), 39337 (TI) | fails offset by 1.5 mV (1 mV typical) |
+| 3 | MAX9142ESA+T (C18567) | 40 ns per LCSC; Vos and input range not read | unknown | $1.857 | 20 | `unverified` |
+| - | RS393XK, TP2012, LM393 | tPD 205 ns, 13 us, 1.3 us | | $0.05-0.33 | | too slow |
+
+Input leakage with the supply at 0 V is **not specified** for either TI part. Their ESD diodes conduct when an input is more than about 300 mV above the supply, so neither is power-off high impedance. If the comparator inputs see a live signal while the board is unpowered, add series resistance or a different part.
