@@ -101,3 +101,21 @@ Requirement: threshold +/-50 mV or better, common mode at least 0.4 to 2.6 V, 40
 | 4 | DS90LV028ATM (C133847) | dual, 400 Mbps; datasheet not read, threshold expected +/-100 mV (`unverified`) | unknown | $1.78 | 21 | LCSC |
 
 Finding: SN65LVDS34 is a **quad** receiver, not dual, so one device covers two differential pairs with two spare channels (about $1.75 for the part; two spare channels can serve a second pair). No dual receiver with +/-50 mV threshold was found in the LCSC catalogue. The cheap SOT-23 single receivers fail the threshold requirement.
+
+## D. RF transistors (complementary pair)
+
+Requirement: fT 600 MHz or more, Ccb 1 pF or less, VEBO 3 V or more.
+
+LCSC catalogue filter (stock 50 or more, fT 600 MHz or more): 175 NPN parts, **only 2 PNP**.
+
+| Polarity | Part | fT | Ccb | VEBO | Price at 100 | Stock | Notes |
+|---|---|---|---|---|---|---|---|
+| PNP | **MMBTH81 onsemi (C190349)** | 600 MHz min | 0.85 pF max | 3 V | $0.094 (50 tier; $0.081 at 150) | 10180 | only viable PNP; lifecycle `unknown` (onsemi page not retrievable) |
+| PNP | 50A02CH-TL-E (C890136) | 690 MHz typ | Cob 3.8 pF: **fails** | 5 V | $0.304 | **0 (factory)** | rejected |
+| PNP | BFT92/BFT92W | 5 GHz | n/a | 2 V: **fails** | n/a | n/a | obsolete / no longer manufactured |
+| NPN | MMBTH10LT1G onsemi (C16204) | 650 MHz min | 0.7 pF max | 3 V | $0.113 | 2868 | fully verified |
+| NPN | MMBTH10 UMW (C545531) | 650 MHz (LCSC attr) | unverified | 3 V | $0.014 | 3150 | second source |
+| NPN | MMBTH10 YTL (C53059515) | 650 MHz (LCSC attr) | unverified | 3 V | $0.011 | 2850 | |
+| NPN | S9018 (many makers, e.g. C53261047) | 600-1100 MHz | unverified | 4-5 V | $0.009 | 1600+ | cheapest; Ccb unverified |
+
+Conclusion: the pair MMBTH10 (NPN) plus MMBTH81 (PNP) is the only fully datasheet-verified complementary set. Its cost is negligible (about $0.2 per pair). The PNP stays scarce: the single source is onsemi MMBTH81.
