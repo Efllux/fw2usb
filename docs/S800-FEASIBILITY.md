@@ -351,7 +351,7 @@ the TLK1221 REFCLK and an FPGA global clock pin. Use two short point-to-point
 traces with series resistors, or a single trace with the TLK1221 at its end. In
 the Spartan-6, one PLL makes 786.432 MHz (×8, VCO in range) for
 BUFPLL/ISERDES2/OSERDES2 and 49.152 MHz (÷2). The MCU keeps its own 12 MHz
-crystal. The audio media clock is handled as in `docs/audio/CLOCK-UAC2.md`.
+crystal. The audio media clock is handled as in `docs/audio/CLOCK-UAC2.md` (branch `gateware/timing-closure`).
 
 | Candidate | Spec | Price at 100 (LCSC live, 2026-11-22) | Note |
 |---|---|---|---|
@@ -371,14 +371,14 @@ Source: AT32F405/402 datasheet Ver 2.02, 2025-01-17 (LCSC copy,
 
 - **No parallel memory bus.** The AT32F405 has no XMC/FSMC; the feature
   list and peripheral table list QSPI, SPI, I²S, USART, I²C, CAN, OTGHS and
-  OTGFS only (pp.1..3, Table 1). The XMC exists on AT32F407/F435/F437.
+  OTGFS only (pp.1..3, Table 1 "device summary"). The XMC exists on AT32F407/F435/F437.
 - **QSPI:** one, up to **108 MHz** SCK, input setup 2 ns / hold 4.5 ns, output
   valid ≤ 3 ns (§4.3.16 Table 43). Indirect, status-polling and memory-mapped
-  modes, DMA-capable (§2.2.4, §2.7). The FPGA acts as a QSPI "memory": 4 bits ×
+  modes, DMA-capable (§2.2.4, §2.8). The FPGA acts as a QSPI "memory": 4 bits ×
   54..72 MHz = 216..288 Mb/s raw, half duplex. A more comfortable 54 MHz SCK
   keeps the FPGA slave timing easy. Command and address overhead roughly halves
   this for small transfers, so use ≥ 256-byte bursts per direction per 125 µs.
-- **SPI:** 3 × up to 36 Mb/s (p.1), or 32 Mb/s (§2.13.x). Fine for control or
+- **SPI:** 3 × up to 36 Mb/s (p.1), or 32 Mb/s (§2.13.1; the two figures disagree). Fine for control or
   a status channel, too slow for audio.
 - **OTGHS with on-chip PHY:** device mode HS/FS, 8 IN + 8 OUT endpoints,
   **dedicated 4 KB FIFO RAM**, internal DMA (§2.13.6).
@@ -395,7 +395,7 @@ packet per microframe is 8.19 MB/s per direction:
 | 88.2/96 kHz | 13 | 26 ch | 19 ch |
 | 192 kHz | 25 | 13 ch | 10 ch |
 
-That covers the FireWire interfaces in `docs/` (e.g. Saffire PRO 26/40 at
+That covers the FireWire interfaces in `docs/DEVICES.md` (e.g. Saffire PRO 26/40 at
 48 kHz) but not the largest ones at 96 kHz. Each direction needs ≤ 66 Mb/s,
 so the QSPI link (≥ 100 Mb/s effective, both directions) is adequate for
 audio plus control at these rates, but not for raw 1394 at S400/S800 line
