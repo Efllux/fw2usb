@@ -88,3 +88,16 @@ Observations:
 - ECP5 is the only candidate with a confirmed 393 Mbit/s DDR input spec, delay taps, a hot-socketing section, and an open toolchain, but costs 4 times the Spartan-6. Its 24k LUT size is more than needed.
 - AGM AG10K/AG16K are cheapest of all ($3.40 and $4.62) but I could not verify any I/O spec; they would need datasheet review.
 - Lifecycle is `unknown` for everything except Spartan-6 (AMD commitment); no maker page confirming "Active" was retrievable.
+
+## C. Dual LVDS / line receiver
+
+Requirement: threshold +/-50 mV or better, common mode at least 0.4 to 2.6 V, 400 Mbps or more, power-off input high impedance (leakage tens of uA), CI 5 pF or less, pulse skew 300 ps or less.
+
+| Rank | Part | Verified specs (datasheet) | Lifecycle | Price at 100 | Stock | Source |
+|---|---|---|---|---|---|---|
+| 1 | **SN65LVDS34DR** (reference) | threshold +/-50 mV with hysteresis; CM -4 to 5 V; Ioff +/-50 uA; CI 5 pF; tsk(p) 200 ps; 400 Mbps; 4 channels | Active | **$1.75** (TI direct, 100-249 tier) | 2500 (TI) | [TI](https://www.ti.com/product/SN65LVDS34), SLLS490B |
+| 2 | SN65LVDS33PWR (LCSC C200355) | same family specs, TSSOP-16 | Active | $2.43 (LCSC live; TI $3.159) | 133 | LCSC |
+| 3 | SN65LVDS2DBVR (C38204), 2 needed | threshold +/-100 mV and CI 5.8 pF: **fails both** | Active | $0.468 each | 3720 | LCSC |
+| 4 | DS90LV028ATM (C133847) | dual, 400 Mbps; datasheet not read, threshold expected +/-100 mV (`unverified`) | unknown | $1.78 | 21 | LCSC |
+
+Finding: SN65LVDS34 is a **quad** receiver, not dual, so one device covers two differential pairs with two spare channels (about $1.75 for the part; two spare channels can serve a second pair). No dual receiver with +/-50 mV threshold was found in the LCSC catalogue. The cheap SOT-23 single receivers fail the threshold requirement.
