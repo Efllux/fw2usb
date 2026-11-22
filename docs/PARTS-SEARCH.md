@@ -66,3 +66,25 @@ Conclusion: a transceiver FPGA costs 2 to 8 times the TLK1221 path. Not viable a
 | Spartan-7, CrossLink-NX, Certus-NX, MachXO, Anlogic EG4/SF1 | unverified (datasheets not retrievable) | | | |
 
 Only the Gowin GW2A/GW5A and Efinix Titanium have a verified spec at or above 1 Gb/s, and none is cheap on LCSC. Soft CDR at 983.04 Mbaud means about 1.2x oversampling headroom at best on GW2A, not a comfortable 3x. Treat soft CDR as unproven.
+
+## B. FPGA logic
+
+Requirement: Active, in stock, DDR inputs with delay taps for 393 Mbit/s single-ended capture, hot-socket-tolerant 3.3 V I/O. All prices LCSC live, 2026-11-22.
+
+| LUT class | Part | Specs | Price at 100 | Stock | Toolchain | Caveat |
+|---|---|---|---|---|---|---|
+| ~5k | XC6SLX9-2TQG144C (C27408) | Spartan-6, 5.7k LUT6, IODELAY2, ISERDES2, 3.3 V | $5.90 (60+ tier) | 2221 | ISE only | 2009 design; AMD extended lifecycle to at least 2030 |
+| ~5k | ICE40UP5K-SG48I (C2678152) | 5.3k LUT4, no delay taps | $9.56 | 166 | Yosys/nextpnr | fails delay-tap requirement |
+| ~5k | GW1N-LV4QN88C6/I5 (C31900351) | 4.6k LUT4 | $12.38 | 88 | Apicula | I/O rate unverified |
+| ~10k | AG10KL144 (C133763) | AGM 10k LUT | $3.40 (60+ tier) | 381 | proprietary | DDR/delay/hot-socket specs unverified |
+| ~10k | XC6SLX16-2FTG256C (C39313) | Spartan-6, 9.1k LUT6 | $5.85 (90+) | 579 | ISE only | as above |
+| ~10k | EP4CE10E22I7N (C569007) | Cyclone IV E | $16.46 | 159 | Quartus | |
+| ~25k | AG16KL144A (C41397170) | AGM 16k LUT | $4.62 (60+) | 264 | proprietary | unverified I/O |
+| ~25k | XC6SLX25-2CSG324I (C169795) | Spartan-6, 15k LUT6 (24k LC) | $11.27 | 309 | ISE only | |
+| ~25k | **LFE5U-25F-7BG256I (C1550762)** | ECP5 24k LUT4, GDDRX1 500 Mb/s, delay taps, hot-socketing section in DS | $22.19 (30+) | 1091 | **Yosys/nextpnr-ecp5, mature** | most expensive of the three |
+
+Observations:
+- Spartan-6 is by far the cheapest verified-capable logic on LCSC, but it is a legacy part and has no open toolchain. The user's no-obsolete-parts rule decides whether it is acceptable; AMD's own blog says production continues to at least 2030.
+- ECP5 is the only candidate with a confirmed 393 Mbit/s DDR input spec, delay taps, a hot-socketing section, and an open toolchain, but costs 4 times the Spartan-6. Its 24k LUT size is more than needed.
+- AGM AG10K/AG16K are cheapest of all ($3.40 and $4.62) but I could not verify any I/O spec; they would need datasheet review.
+- Lifecycle is `unknown` for everything except Spartan-6 (AMD commitment); no maker page confirming "Active" was retrievable.
