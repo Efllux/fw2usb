@@ -209,7 +209,7 @@ Live LCSC stock was 0 for these, so they cannot be bought at quantity 100 withou
 | 3b | TLK1221 + ECP5 LFE5U-25F-7BG256I + SN65LVDS34 | $3.22 + $22.19 + $1.75 = **$27.16** | $28.37 | yes (mature) | over budget; the one confirmed 393 Mbit/s DDR-input spec |
 | 4 | Transceiver FPGA alone: XC7A15T-1FGG484I $22.43 (30 in stock), GW5AT-LV15MG132 $27.02 (341 in stock), ECP5-UM-45 $34.12 (2 in stock) | $22-34 plus $1.75 for legacy | $24-36 | only ECP5 | 2 to 4 times the TLK1221 path; BGA-484 oversize for Artix; S400b 491.52 below GTP minimum 0.5 Gb/s |
 
-Reading: only architectures 1 to 3 fit the 15 EUR total board budget, and only with a TLK1221 supplied from LCSC at $3.22. At TI's $8.244 the high-speed portion rises by $5.02 in every row. A soft-CDR design on FPGAs without transceivers gains nothing: the fastest verified I/O (GW2A 1.2 Gb/s) costs $41.
+Reading: only architectures 1 to 3 are anywhere near the 15 EUR board budget (these are parts for the high-speed path and USB MCU only; socket, passives, PCB and power are extra), and only with a TLK1221 supplied from LCSC at $3.22. At TI's $8.244 the high-speed portion rises by $5.02 in every row. A soft-CDR design on FPGAs without transceivers gains nothing: the fastest verified I/O (GW2A 1.2 Gb/s) costs $41.
 
 ## Surprises
 
