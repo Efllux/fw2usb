@@ -132,3 +132,36 @@ Requirement: dual, 40 ns or less, rail-to-rail input at 3.3 V, offset 5 mV or le
 | - | RS393XK, TP2012, LM393 | tPD 205 ns, 13 us, 1.3 us | | $0.05-0.33 | | too slow |
 
 Input leakage with the supply at 0 V is **not specified** for either TI part. Their ESD diodes conduct when an input is more than about 300 mV above the supply, so neither is power-off high impedance. If the comparator inputs see a live signal while the board is unpowered, add series resistance or a different part.
+
+## F. Other parts
+
+### 1.8 V LDO with enable and no output discharge
+
+| Part | Notes | Lifecycle | Price at 100 | Stock |
+|---|---|---|---|---|
+| **TLV70018DCKR** (C133796) | TI, 200 mA, enable, SC-70-5. Datasheet lists no discharge feature, but a revision note mentions deleting an "active pulldown resistance" parameter: confirm on the 1.8 V option | Active (TI) | $0.127 (LCSC), TI $0.198 | 13150 (LCSC), 34312 (TI) |
+| TLV70018DDCR (C79924) | same, SOT-23-5 | Active | $0.128 | 5570 |
+| DS8571-18S5, MG6228T5-18, XC6219B182MR, ... | 241 fixed 1.8 V enable LDOs in LCSC at about $0.03; discharge behaviour not checked | unknown | $0.026-0.040 | 5000+ |
+| TLV755xxP, TLV733xxP | rejected: active discharge | | | |
+
+### 9-pin FireWire 800 socket
+
+| Part | Finding | Price at 100 | Stock |
+|---|---|---|---|
+| PI4FW-R22B-003 (C55061496, YUWENFA) | datasheet is a mechanical drawing titled "Mini 1394b, 9 pin"; it does not say bilingual and shows no key detail. **Bilingual still unconfirmed** | $1.924 | 1326 |
+| Newnex RFB-9002 | Newnex page names it a "vertical bilingual" 9-pin receptacle. Price and stock `unverified` (DigiKey page returned 403) | unverified | unverified |
+
+No other 9-pin 1394b socket was found in the LCSC catalogue. TE 5787956-1 was not verified as 9-pin. Recommendation: order a sample of both and test with a 6-pin 1394a cable, or get written confirmation from YUWENFA.
+
+### 2:1 differential analog switch (Con 2 pF or less, common mode to 2.6 V)
+
+62 LCSC catalogue parts list Con 2 pF or less; most are 4000-series CMOS switches (not suitable) or 74HC types at 70-290 MHz. The high-speed ones:
+
+| Part | Con | Range | Lifecycle | Price at 100 | Stock |
+|---|---|---|---|---|---|
+| **TS3USB3000RSER** (C882807, TI) | 1.4 pF typ (USB path), 6.1 GHz, power-off leakage +/-10 uA | 0-3.6 V, Vcc 2.3-4.8 V | Active | $0.471 | 963 (LCSC), 59840 (TI) |
+| CBTL01023GM,115 (C2150887, NXP) | 1.5 pF, 9 GHz (LCSC attrs) | 3.0-3.6 V supply | unknown | $0.315 | 682 |
+| TS3USB3000RSER-HXY (C49108280) | 1.5 pF (LCSC attrs) | | unknown | $0.351 | 2563 |
+| TMUX121NKGR (C22428404, TI) | 1.7 pF (LCSC attrs) | 3.0-3.6 V | unknown | $0.524 | 4873 |
+
+Con values are typical, not maximum.
