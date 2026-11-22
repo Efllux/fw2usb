@@ -182,3 +182,50 @@ Con values are typical, not maximum.
 Rejected: AT32F402 and AT32F455/456/457 (full speed only; Artery pages/datasheet), WCH CH32V208 (stock 0).
 
 "Lite" S100-only candidates (USB full speed is enough): RP2350A $1.172 (stock 5994) and RP2350B $1.139 (stock 3089), both full speed. CH570 and CH569 could not be priced: no bare part is listed on LCSC.
+
+## Zero-stock factory listings
+
+Live LCSC stock was 0 for these, so they cannot be bought at quantity 100 without a factory order. Do not count them in the architecture costs.
+
+| Part | Category | Live price at 100 | Note |
+|---|---|---|---|
+| EF2L45UG132B (C7471967), Anlogic | A2/B | $6.215 | catalogue said stock 10 |
+| LFE5U-25F-6BG256C (C1521614), Lattice | B | $11.513 | catalogue said stock 153 |
+| TLK1501IRCP (C47334), TI | A3 | $12.335 | TI itself has 3115 at $26.025 |
+| 50A02CH-TL-E (C890136), onsemi PNP | D | $0.304 | also fails Ccb |
+| CH32H417MEU6 / QEU6, WCH | G | $3.77 / $4.10 | |
+| CH32V208GBU6, WCH | G | $0.994 | |
+| 10M02SCU169C8G, Intel | B | $16.674 | |
+
+## Architectures for the S800 path
+
+"High-speed portion" means SerDes or transceiver, logic FPGA and the 1394a legacy receiver (SN65LVDS34 at $1.75, TI direct). The USB MCU is listed separately (AT32F405KBU7-4 at $1.213). Prices are LCSC live at 100 unless noted. The TLK1221 is $3.22 on LCSC but $8.244 from TI directly; both are shown.
+
+| # | Architecture | High-speed portion parts cost | With USB MCU | Open toolchain | Main risks |
+|---|---|---|---|---|---|
+| 1 | TLK1221 + AGM AG10KL144 + SN65LVDS34 | $3.22 + $3.40 + $1.75 = **$8.37** (TI price for TLK1221: $13.39) | $9.58 | no | AGM I/O specs, lifecycle and hot-socket behaviour all `unverified`; 491.52 Mbaud (S400b) not covered by TLK1221 |
+| 2 | TLK1221 + Spartan-6 XC6SLX9-2TQG144C + SN65LVDS34 | $3.22 + $5.90 + $1.75 = **$10.87** (TI: $15.89) | $12.08 | no (ISE) | legacy 2009 part, may conflict with the no-old-parts rule; S400b not covered |
+| 3 | TLK1221 + iCE40UP5K-SG48I + SN65LVDS34 | $3.22 + $9.56 + $1.75 = **$14.53** (TI: $19.55) | $15.74 | yes (Yosys/nextpnr-ice40) | no delay taps, 393 Mbit/s capture margin unproven; S400b not covered |
+| 3b | TLK1221 + ECP5 LFE5U-25F-7BG256I + SN65LVDS34 | $3.22 + $22.19 + $1.75 = **$27.16** | $28.37 | yes (mature) | over budget; the one confirmed 393 Mbit/s DDR-input spec |
+| 4 | Transceiver FPGA alone: XC7A15T-1FGG484I $22.43 (30 in stock), GW5AT-LV15MG132 $27.02 (341 in stock), ECP5-UM-45 $34.12 (2 in stock) | $22-34 plus $1.75 for legacy | $24-36 | only ECP5 | 2 to 4 times the TLK1221 path; BGA-484 oversize for Artix; S400b 491.52 below GTP minimum 0.5 Gb/s |
+
+Reading: only architectures 1 to 3 fit the 15 EUR total board budget, and only with a TLK1221 supplied from LCSC at $3.22. At TI's $8.244 the high-speed portion rises by $5.02 in every row. A soft-CDR design on FPGAs without transceivers gains nothing: the fastest verified I/O (GW2A 1.2 Gb/s) costs $41.
+
+## Surprises
+
+- LCSC sells the TLK1221 at $3.22 against TI's own $8.244 at 100, and TLK1201A/TLK2201B (the usual 1394b suspects) are absent or Obsolete. TLK1221 is Active, TBI, 0.6-1.3 Gbps, and runs on a 98.304 MHz reference.
+- SN65LVDS34 is a quad receiver, not dual.
+- Only one PNP RF transistor (MMBTH81) qualifies in the whole LCSC catalogue.
+- The Artery AT32F455/456/457 and AT32F402 are full speed; AT32F405 has the HS PHY.
+- Catalogue stock and price drifted from live checks for several parts (see Method), so always check live.
+
+## What I could not verify
+
+- Maker lifecycle status for all non-TI parts (written `unknown`); no part was assumed Active.
+- Datasheet I/O rates for Gowin GW1N and GW5A (Mouser blocked), Lattice CrossLink-NX/Certus-NX, Spartan-7, Anlogic, AGM AG10K/AG16K. Spartan-6 DS162 is only the 2009 advance copy.
+- Prices for Efinix Titanium, Pango, Anlogic PH1, PolarFire, CertusPro-NX, Spartan UltraScale+ (not on LCSC, web search found none).
+- Whether TLK1221 on LCSC is first-party stock at 2.5 times below TI list.
+- Whether PI4FW-R22B-003 is truly bilingual-keyed; RFB-9002 price and stock.
+- Whether the CH32V305 QFN28 package exposes USBHS; HS USB on HPM5301; CH570 and CH569 pricing.
+- Common-mode and power-off behaviour of the TLV3202 comparator (not specified), and whether TLV70018 has no discharge.
+- Ccb of Chinese MMBTH10/S9018 second sources.
