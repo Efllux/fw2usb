@@ -165,3 +165,20 @@ No other 9-pin 1394b socket was found in the LCSC catalogue. TE 5787956-1 was no
 | TMUX121NKGR (C22428404, TI) | 1.7 pF (LCSC attrs) | 3.0-3.6 V | unknown | $0.524 | 4873 |
 
 Con values are typical, not maximum.
+
+## G. Microcontrollers with high-speed USB and built-in PHY
+
+| Rank | Part | HS USB evidence | Lifecycle | Price at 100 | Stock | Notes |
+|---|---|---|---|---|---|---|
+| 1 | CH32V305GBU6 (C19100608), WCH | datasheet V3.6 lists USBHS (+PHY) for CH32V305; **QFN28 pin availability of USBHS not confirmed** | unknown | **$1.116** | 2380 | verify pinout first |
+| 2 | **AT32F405KBU7-4** (C47090436), Artery, QFN32 | Artery page: "1 x OTGHS (including on-chip PHY)" | unknown | **$1.213** | 337 | best verified |
+| 3 | AT32F405CCT7 (C47115471), LQFP48 | same | unknown | $1.347 (250 tier; $1.552 at 30+) | 95 | |
+| 4 | AT32F405RBT7 (C47090500), LQFP64 | same | unknown | $1.457 (160 tier) | 116 | |
+| 5 | CH32V317WCU6 (C49188393), WCH, QFN68 | datasheet: USBHS+PHY, plus Ethernet | unknown | $2.243 (30 tier; $1.951 at 260+) | 3082 | |
+| 6 | CH32V307RCT6/VCT6 | datasheet: USBHS+PHY | unknown | $2.36-2.71 | 1342 / 5097 | |
+| 7 | HPM5301IEG1 (C49451864), HPMicro | not verified | unknown | $2.473 | 494 | |
+| - | CH32H417MEU6/QEU6 | not read | unknown | $3.77 / $4.10 | **0** | factory listing |
+
+Rejected: AT32F402 and AT32F455/456/457 (full speed only; Artery pages/datasheet), WCH CH32V208 (stock 0).
+
+"Lite" S100-only candidates (USB full speed is enough): RP2350A $1.172 (stock 5994) and RP2350B $1.139 (stock 3089), both full speed. CH570 and CH569 could not be priced: no bare part is listed on LCSC.
